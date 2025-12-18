@@ -23,6 +23,20 @@ jps -l
 
 # Example: PID 12345
 profiler.sh -d 60 -f /tmp/flame-work.svg 12345
+
+# In version 4.2 and later, you can use:
+./asprof -d 60 -f flamegraph.html 4236
+
+# If command is not found then use this command before running asprof
+chmod +x asprof
+
+# some the other options you can use with asprof
+# get CPU profile
+./asprof -e cpu -d 60 -f result.html 4236
+# get information for specific java method
+./asprof -e 'com.example.perf.controller.WorkController.doWork' -d 60 -f result.html 4236
+# get heap allocation profile
+./asprof -e alloc -d 60 -f result.html 4236
 ```
 
 - **`-d 60`**: profile for 60 seconds while you send load (e.g., with JMeter).
