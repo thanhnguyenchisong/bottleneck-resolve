@@ -20,4 +20,4 @@ ENV PATH="/opt/async-profiler:$PATH"
 WORKDIR /app
 COPY target/bottleneck-resolve-0.0.1-SNAPSHOT.jar app.jar
 
-ENTRYPOINT ["java","-jar","app.jar"]ex
+ENTRYPOINT ["java","-jar","app.jar"]

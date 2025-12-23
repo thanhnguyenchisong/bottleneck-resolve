@@ -14,11 +14,11 @@ This guide shows how to:
 mvn spring-boot:run
 ```
 
-Hit `http://localhost:8080/work?n=20000` manually to see it is slow.
+Hit [http://localhost:8080/work?n=20000](http://localhost:8080/work?n=20000) manually to see it is slow.
 
 ### Step 2: Measure with JMeter
 
-- Configure the JMeter plan from `docs/03-jmeter-load-test.md`.
+- Configure the JMeter plan from [docs/03-jmeter-load-test.md](03-jmeter-load-test.md).
 - Record baseline metrics: throughput, latency percentiles.
 
 ### Step 3: Profile with Async Profiler
@@ -29,8 +29,8 @@ Hit `http://localhost:8080/work?n=20000` manually to see it is slow.
 
 ### Step 4: Monitor with Prometheus + Grafana
 
-- Build and start the Docker stack (`docs/02-prometheus-grafana-setup.md`).
-- Send load to `http://localhost:8080/work?n=20000`.
+- Build and start the Docker stack ([docs/02-prometheus-grafana-setup.md](02-prometheus-grafana-setup.md)).
+- Send load to [http://localhost:8080/work?n=20000](http://localhost:8080/work?n=20000).
 - Watch HTTP latency and JVM metrics in Grafana.
 
 ### Step 5: Optimize and verify

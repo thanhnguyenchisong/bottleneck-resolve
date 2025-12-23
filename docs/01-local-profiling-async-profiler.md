@@ -1,10 +1,14 @@
 ## Local profiling with Async Profiler
 
-### 1. Build and run the app
+### 1. Build and run the app with docker compose
 
 ```bash
+# Build mvn app
 mvn clean package -DskipTests
-java -jar target/performance-improve-0.0.1-SNAPSHOT.jar
+# Build docker image
+docker compose build app
+# Start app and all relevant apps
+docker compose up -d
 ```
 
 Hit the slow endpoint in another terminal:
@@ -15,14 +19,11 @@ curl "http://localhost:8080/work?n=20000"
 
 ### 2. Start Async Profiler
 
-Assuming `async-profiler` is installed and `profiler.sh` is on your PATH:
-
+Access to your app container directly.
+Assuming `async-profiler` is installed and `asprof.sh` is on your PATH:
 ```bash
 # Find the PID of the Java process
 jps -l
-
-# Example: PID 12345
-profiler.sh -d 60 -f /tmp/flame-work.svg 12345
 
 # In version 4.2 and later, you can use:
 ./asprof -d 60 -f flamegraph.html 4236
