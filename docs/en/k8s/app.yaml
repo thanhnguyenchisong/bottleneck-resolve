@@ -21,7 +21,7 @@ spec:
       containers:
         - name: perf-app
           # Update the image to the one you pushed (e.g., my-registry/performance-improve:tag)
-          image: thanhncs/thanhdev:latest
+          image: thanhncs/perf-app:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

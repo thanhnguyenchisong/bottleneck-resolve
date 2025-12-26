@@ -71,7 +71,7 @@ metadata:
 ```yaml
 replicaCount: 3
 image:
-  repository: thanhncs/thanhdev
+  repository: thanhncs/perf-app
   tag: "latest"
   pullPolicy: IfNotPresent
 service:

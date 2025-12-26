@@ -42,7 +42,7 @@ metadata:
 - Group logically:
 ```yaml
 image:
-  repository: thanhncs/thanhdev
+  repository: thanhncs/perf-app
   tag: "latest"
   pullPolicy: IfNotPresent
 resources:
