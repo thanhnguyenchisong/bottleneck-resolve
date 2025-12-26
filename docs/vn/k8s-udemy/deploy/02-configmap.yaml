@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bottleneck-resolve-config
+  namespace: bottleneck-resolve
+  labels:
+    app: bottleneck-resolve
+data:
+  application.yml: |
+    server:
+      port: 8080
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: "health,info,prometheus"
+      endpoint:
+        prometheus:
+          enabled: true
+      metrics:
+        tags:
+          application: bottleneck-resolve
+      health:
+        probes:
+          enabled: true
+    
+    spring:
+      application:
+        name: bottleneck-resolve
+      profiles:
+        active: production

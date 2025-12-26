@@ -1,0 +1,59 @@
+# API version for Service resource
+apiVersion: v1
+
+# Service - provides stable network endpoint to access pods
+# Acts as a load balancer and service discovery mechanism
+kind: Service
+
+metadata:
+  # Service name - used for DNS resolution within cluster
+  # Accessible as: bottleneck-resolve.bottleneck-resolve.svc.cluster.local
+  name: bottleneck-resolve
+  
+  # Namespace where Service is created
+  namespace: bottleneck-resolve
+  
+  # Labels for resource organization
+  labels:
+    app: bottleneck-resolve
+  
+  # Annotations - metadata for tools and controllers
+  annotations:
+    # Prometheus annotations - tells Prometheus to scrape this service
+    prometheus.io/scrape: "true"  # Enable scraping
+    prometheus.io/port: "8080"    # Port to scrape
+    prometheus.io/path: "/actuator/prometheus"  # Metrics endpoint
+
+# Service specification
+spec:
+  # Service type
+  # ClusterIP: internal cluster IP (default) - only accessible within cluster
+  # NodePort: exposes on each node's IP at static port
+  # LoadBalancer: creates external load balancer (cloud provider)
+  # ExternalName: maps to external DNS name
+  type: ClusterIP
+  
+  # Selector - matches pods to route traffic to
+  # Must match pod labels from Deployment
+  selector:
+    app: bottleneck-resolve
+  
+  # Ports exposed by the service
+  ports:
+  - name: http  # Port name (referenced in ServiceMonitor)
+    port: 80    # Port exposed by service (external port)
+    targetPort: 8080  # Port on pods to forward to (container port)
+    protocol: TCP
+  
+  # Session affinity - ensures requests from same client go to same pod
+  # ClientIP: based on client IP address
+  # Useful for stateful applications or sticky sessions
+  sessionAffinity: ClientIP
+  
+  # Session affinity configuration
+  sessionAffinityConfig:
+    clientIP:
+      # Timeout in seconds for session affinity
+      # 10800 = 3 hours (default)
+      # After timeout, client may be routed to different pod
+      timeoutSeconds: 10800

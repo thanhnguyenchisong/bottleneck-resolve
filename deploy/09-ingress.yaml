@@ -1,0 +1,78 @@
+# API version for Ingress resource
+apiVersion: networking.k8s.io/v1
+
+# Ingress - provides HTTP/HTTPS routing from outside cluster to services
+# Acts as a reverse proxy and load balancer
+kind: Ingress
+
+metadata:
+  # Ingress name
+  name: bottleneck-resolve-ingress
+  
+  # Namespace where Ingress is created
+  namespace: bottleneck-resolve
+  
+  # Labels for resource organization
+  labels:
+    app: bottleneck-resolve
+  
+  # Annotations - configure Ingress controller behavior
+  annotations:
+    # Ingress class (legacy - use spec.ingressClassName instead)
+    kubernetes.io/ingress.class: "nginx"
+    
+    # cert-manager annotation - automatically provision TLS certificate
+    # Uses Let's Encrypt production issuer
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    
+    # NGINX Ingress Controller annotations
+    # Redirect HTTP to HTTPS
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Force HTTPS (return 308 redirect)
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    
+    # Maximum request body size (10 megabytes)
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    
+    # Proxy timeouts (in seconds)
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"  # Connection timeout
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"     # Send timeout
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"       # Read timeout
+    
+    # Rate limiting: 100 requests per minute per IP
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+
+# Ingress specification
+spec:
+  # Ingress class - selects which Ingress controller handles this Ingress
+  # Must match IngressClass name in cluster
+  ingressClassName: nginx
+  
+  # TLS configuration - enables HTTPS
+  tls:
+  - hosts:
+    # List of hostnames for this TLS certificate
+    # TODO: Update with your actual domain name
+    - bottleneck-resolve.example.com
+    # Secret name where TLS certificate will be stored
+    # cert-manager will create this secret automatically
+    secretName: bottleneck-resolve-tls
+  
+  # Routing rules
+  rules:
+  - host: bottleneck-resolve.example.com  # Hostname to match
+    http:
+      paths:
+      # Path routing rule
+      - path: /  # Match all paths starting with /
+        # Path type determines matching behavior
+        # Prefix: matches path prefix
+        # Exact: exact match
+        # ImplementationSpecific: controller-specific
+        pathType: Prefix
+        # Backend service to route traffic to
+        backend:
+          service:
+            name: bottleneck-resolve  # Service name
+            port:
+              number: 80  # Service port

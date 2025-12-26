@@ -1,0 +1,97 @@
+# API version for HorizontalPodAutoscaler (v2 supports multiple metrics)
+apiVersion: autoscaling/v2
+
+# HorizontalPodAutoscaler - automatically scales number of pods based on metrics
+# Requires metrics-server or custom metrics adapter to be installed
+kind: HorizontalPodAutoscaler
+
+metadata:
+  # HPA name
+  name: bottleneck-resolve-hpa
+  
+  # Namespace where HPA is created
+  namespace: bottleneck-resolve
+  
+  # Labels for resource organization
+  labels:
+    app: bottleneck-resolve
+
+# HPA specification
+spec:
+  # Target resource to scale
+  scaleTargetRef:
+    apiVersion: apps/v1  # API version of target resource
+    kind: Deployment     # Resource type to scale
+    name: bottleneck-resolve  # Name of Deployment to scale
+  
+  # Minimum number of replicas (always maintain at least this many)
+  minReplicas: 3
+  
+  # Maximum number of replicas (never scale above this)
+  maxReplicas: 10
+  
+  # Metrics to base scaling decisions on
+  metrics:
+  # CPU utilization metric
+  - type: Resource  # Resource metric type (CPU, memory)
+    resource:
+      name: cpu  # Resource name
+      target:
+        type: Utilization  # Target type: Utilization (percentage)
+        # Target CPU utilization: 70%
+        # HPA will scale to maintain average CPU at 70%
+        averageUtilization: 70
+  
+  # Memory utilization metric
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        # Target memory utilization: 80%
+        # HPA will scale to maintain average memory at 80%
+        averageUtilization: 80
+  
+  # Scaling behavior - controls how fast and aggressively to scale
+  behavior:
+    # Scale-down behavior (reducing replicas)
+    scaleDown:
+      # Stabilization window: wait 5 minutes before scaling down
+      # Prevents rapid scale-down after temporary load spikes
+      stabilizationWindowSeconds: 300
+      
+      # Scaling policies - multiple policies can be defined
+      policies:
+      # Policy 1: Scale down by maximum 50% of current replicas
+      - type: Percent
+        value: 50        # 50% reduction
+        periodSeconds: 60  # Over 60 seconds
+      
+      # Policy 2: Scale down by maximum 1 pod
+      - type: Pods
+        value: 1         # Remove 1 pod
+        periodSeconds: 60  # Over 60 seconds
+      
+      # selectPolicy: Min means use the most conservative policy
+      # In this case, will scale down by min(50%, 1 pod) = 1 pod max
+      selectPolicy: Min
+    
+    # Scale-up behavior (increasing replicas)
+    scaleUp:
+      # No stabilization window - scale up immediately when needed
+      stabilizationWindowSeconds: 0
+      
+      policies:
+      # Policy 1: Scale up by maximum 100% of current replicas
+      - type: Percent
+        value: 100       # Double the replicas
+        periodSeconds: 30  # Over 30 seconds
+      
+      # Policy 2: Scale up by maximum 2 pods
+      - type: Pods
+        value: 2         # Add 2 pods
+        periodSeconds: 30  # Over 30 seconds
+      
+      # selectPolicy: Max means use the most aggressive policy
+      # Will scale up by max(100%, 2 pods) = whichever is larger
+      selectPolicy: Max

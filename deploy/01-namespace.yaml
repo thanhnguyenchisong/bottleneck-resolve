@@ -1,0 +1,21 @@
+# API version for this Kubernetes resource
+# v1 is the stable API version for core resources like Namespace
+apiVersion: v1
+
+# Resource type: Namespace - logical isolation boundary for resources
+# Namespaces allow you to organize and separate resources in a cluster
+kind: Namespace
+
+# Metadata section - contains identifying information about the resource
+metadata:
+  # Name of the namespace - must be unique within the cluster
+  # This will be used to isolate all resources for this application
+  name: bottleneck-resolve
+  
+  # Labels are key-value pairs used for organizing and selecting resources
+  labels:
+    # Label to identify this namespace by name (useful for network policies)
+    name: bottleneck-resolve
+    # Label indicating this is a production environment
+    # Useful for environment-specific policies and monitoring
+    environment: production

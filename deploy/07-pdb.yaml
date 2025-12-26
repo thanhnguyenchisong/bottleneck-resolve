@@ -1,0 +1,31 @@
+# API version for PodDisruptionBudget resource
+apiVersion: policy/v1
+
+# PodDisruptionBudget - ensures minimum number of pods available during voluntary disruptions
+# Voluntary disruptions: node drain, rolling updates, manual pod deletion
+# Does NOT protect against involuntary disruptions (node failure, OOM kills)
+kind: PodDisruptionBudget
+
+metadata:
+  # PDB name
+  name: bottleneck-resolve-pdb
+  
+  # Namespace where PDB is created
+  namespace: bottleneck-resolve
+  
+  # Labels for resource organization
+  labels:
+    app: bottleneck-resolve
+
+# PDB specification
+spec:
+  # Minimum number of pods that must be available
+  # Alternative: use maxUnavailable instead (but not both)
+  # With 3 replicas and minAvailable: 2, allows 1 pod to be disrupted
+  minAvailable: 2
+  
+  # Selector - matches pods to protect
+  # Must match pod labels from Deployment
+  selector:
+    matchLabels:
+      app: bottleneck-resolve

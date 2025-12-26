@@ -1,0 +1,34 @@
+# API version for Kustomization resource
+apiVersion: kustomize.config.k8s.io/v1beta1
+
+# Kustomization - Kustomize configuration file
+# Kustomize is a template-free way to customize Kubernetes manifests
+# Allows you to manage multiple environments (dev, staging, prod) with overlays
+kind: Kustomization
+
+# Default namespace - all resources will be created in this namespace
+# Can be overridden by individual resources
+namespace: bottleneck-resolve
+
+# List of Kubernetes manifest files to include
+# Kustomize will process these files in order
+# Order matters for dependencies (e.g., namespace before resources)
+resources:
+  - 01-namespace.yaml          # Namespace (must be first)
+  - 02-configmap.yaml          # ConfigMap (needed by Deployment)
+  - 03-secret.yaml             # Secret (if needed by Deployment)
+  - 11-serviceaccount.yaml     # ServiceAccount (needed by Deployment)
+  - 12-rbac.yaml               # RBAC (references ServiceAccount)
+  - 04-deployment.yaml         # Deployment (main application)
+  - 05-service.yaml            # Service (exposes Deployment)
+  - 06-hpa.yaml                # HPA (scales Deployment)
+  - 07-pdb.yaml                # PDB (protects Deployment pods)
+  - 08-servicemonitor.yaml     # ServiceMonitor (Prometheus integration)
+  - 09-ingress.yaml            # Ingress (external access)
+  - 10-networkpolicy.yaml      # NetworkPolicy (network security)
+
+# Common labels - automatically added to all resources
+# Useful for resource organization and selection
+commonLabels:
+  app: bottleneck-resolve  # Application label
+  managed-by: kustomize    # Indicates managed by Kustomize

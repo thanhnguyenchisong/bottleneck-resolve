@@ -1,0 +1,61 @@
+# API version for ConfigMap resource
+apiVersion: v1
+
+# ConfigMap - stores non-sensitive configuration data as key-value pairs
+# ConfigMaps allow you to decouple configuration from container images
+kind: ConfigMap
+
+metadata:
+  # Name of the ConfigMap - referenced in Deployment volumeMounts
+  name: bottleneck-resolve-config
+  
+  # Namespace where this ConfigMap will be created
+  namespace: bottleneck-resolve
+  
+  # Labels for resource organization and selection
+  labels:
+    app: bottleneck-resolve
+
+# Data section - contains the actual configuration key-value pairs
+data:
+  # Key name: application.yml (this becomes a filename when mounted)
+  # The pipe (|) preserves newlines and formatting for multi-line YAML
+  application.yml: |
+    # Spring Boot server configuration
+    server:
+      # Port on which the application will listen inside the container
+      port: 8080
+    
+    # Spring Boot Actuator management endpoints configuration
+    management:
+      endpoints:
+        web:
+          exposure:
+            # Comma-separated list of endpoints to expose via HTTP
+            # health: health check endpoint
+            # info: application information
+            # prometheus: metrics in Prometheus format
+            include: "health,info,prometheus"
+      endpoint:
+        prometheus:
+          # Enable Prometheus metrics endpoint
+          enabled: true
+      metrics:
+        tags:
+          # Add custom tag to all metrics for easier filtering in Prometheus
+          application: bottleneck-resolve
+      health:
+        probes:
+          # Enable Kubernetes liveness and readiness probe endpoints
+          # Creates /actuator/health/liveness and /actuator/health/readiness
+          enabled: true
+    
+    # Spring Boot application configuration
+    spring:
+      application:
+        # Application name - used for service discovery and logging
+        name: bottleneck-resolve
+      profiles:
+        # Active Spring profile - determines which configuration to use
+        # "production" profile typically has production-specific settings
+        active: production

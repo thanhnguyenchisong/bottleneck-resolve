@@ -1,0 +1,214 @@
+# API version for Deployment resource (apps/v1 is stable since Kubernetes 1.9)
+apiVersion: apps/v1
+
+# Deployment - manages a set of identical pods (replicas)
+# Provides declarative updates, rolling updates, and rollback capabilities
+kind: Deployment
+
+metadata:
+  # Name of the Deployment
+  name: bottleneck-resolve
+  
+  # Namespace where Deployment will be created
+  namespace: bottleneck-resolve
+  
+  # Labels for resource selection and organization
+  labels:
+    app: bottleneck-resolve
+    version: v1  # Version label for tracking deployments
+
+# Specification section - defines desired state
+spec:
+  # Number of pod replicas to maintain
+  # 3 replicas provide high availability and load distribution
+  replicas: 3
+  
+  # Update strategy for rolling out new versions
+  strategy:
+    # RollingUpdate: gradually replaces old pods with new ones (zero downtime)
+    # Alternative: Recreate (terminates all old pods before creating new ones)
+    type: RollingUpdate
+    rollingUpdate:
+      # maxSurge: maximum number of pods that can be created above desired replicas
+      # "1" means can have 4 pods total during update (3 desired + 1 new)
+      maxSurge: 1
+      # maxUnavailable: maximum pods that can be unavailable during update
+      # "0" ensures zero downtime - always have at least 3 pods running
+      maxUnavailable: 0
+  
+  # Selector - identifies which pods belong to this Deployment
+  selector:
+    matchLabels:
+      app: bottleneck-resolve
+  
+  # Pod template - defines the specification for pods created by this Deployment
+  template:
+    metadata:
+      # Labels must match selector.matchLabels
+      labels:
+        app: bottleneck-resolve
+        version: v1
+      
+      # Annotations - metadata not used for selection (unlike labels)
+      annotations:
+        # Prometheus scraping annotations - used by Prometheus to discover metrics
+        prometheus.io/scrape: "true"  # Enable scraping
+        prometheus.io/port: "8080"    # Port to scrape
+        prometheus.io/path: "/actuator/prometheus"  # Metrics endpoint path
+    
+    spec:
+      # ServiceAccount - provides identity for pods (for RBAC)
+      serviceAccountName: bottleneck-resolve
+      
+      # Pod-level security context - applies to all containers in the pod
+      securityContext:
+        # Prevent running as root user (security best practice)
+        runAsNonRoot: true
+        # User ID to run as (1000 is a common non-root UID)
+        runAsUser: 1000
+        # Filesystem group ID - sets group ownership of volumes
+        fsGroup: 1000
+      
+      # Container specifications
+      containers:
+      - name: bottleneck-resolve  # Container name (unique within pod)
+        
+        # Container image to use
+        # TODO: Update with your actual image registry and tag
+        image: bottleneck-resolve:latest
+        
+        # Image pull policy
+        # IfNotPresent: only pull if not already present locally
+        # Always: always pull (ensures latest)
+        # Never: never pull (use local only)
+        imagePullPolicy: IfNotPresent
+        
+        # Container ports - informational, doesn't actually publish ports
+        ports:
+        - name: http  # Port name (referenced in Service)
+          containerPort: 8080  # Port the container listens on
+          protocol: TCP
+        
+        # Environment variables injected into container
+        env:
+        # Spring Boot config file location
+        - name: SPRING_CONFIG_LOCATION
+          value: "file:/etc/config/application.yml"
+        
+        # JVM options - passed to Java process
+        - name: JAVA_TOOL_OPTIONS
+          # >- folds newlines into spaces (single line)
+          value: >-
+            -XX:+UseG1GC                    # Use G1 garbage collector (low latency)
+            -XX:MaxGCPauseMillis=200        # Target max GC pause time (200ms)
+            -XX:+HeapDumpOnOutOfMemoryError # Generate heap dump on OOM
+            -XX:HeapDumpPath=/tmp/heapdump.hprof  # Heap dump location
+            -Xms512m                        # Initial heap size (512MB)
+            -Xmx1024m                       # Maximum heap size (1024MB)
+            -Djava.security.egd=file:/dev/./urandom  # Faster random number generation
+        
+        # Active Spring profile
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        
+        # Volume mounts - mount volumes into container filesystem
+        volumeMounts:
+        - name: config  # References volume name below
+          mountPath: /etc/config  # Path inside container
+          readOnly: true  # Mount as read-only (security)
+        
+        # Resource requests and limits
+        resources:
+          # Requests: minimum resources guaranteed to container
+          # Used by scheduler to place pod on appropriate node
+          requests:
+            cpu: "500m"      # 0.5 CPU cores (500 millicores)
+            memory: "768Mi"  # 768 Mebibytes (minimum for JVM + overhead)
+          
+          # Limits: maximum resources container can use
+          # Container will be throttled/killed if exceeded
+          limits:
+            cpu: "2000m"     # 2 CPU cores max
+            memory: "1536Mi" # 1536 MiB max (allows for heap + overhead)
+        
+        # Liveness probe - determines if container is alive
+        # If fails, container is restarted
+        livenessProbe:
+          httpGet:  # HTTP GET request to check health
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60  # Wait 60s before first check (app startup time)
+          periodSeconds: 10        # Check every 10 seconds
+          timeoutSeconds: 5         # Request timeout
+          failureThreshold: 3       # Restart after 3 consecutive failures
+          successThreshold: 1       # Consider healthy after 1 success
+        
+        # Readiness probe - determines if container is ready to serve traffic
+        # If fails, pod is removed from Service endpoints
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30  # Wait 30s before first check
+          periodSeconds: 5          # Check every 5 seconds
+          timeoutSeconds: 3         # Request timeout
+          failureThreshold: 3       # Mark unready after 3 failures
+          successThreshold: 1       # Mark ready after 1 success
+        
+        # Startup probe - allows slow-starting containers extra time
+        # Prevents liveness probe from killing container during startup
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 10   # Wait 10s before first check
+          periodSeconds: 10         # Check every 10 seconds
+          timeoutSeconds: 3         # Request timeout
+          failureThreshold: 30      # Allow up to 30 failures (5 minutes total)
+          successThreshold: 1       # Consider started after 1 success
+        
+        # Container-level security context (overrides pod-level)
+        securityContext:
+          # Prevent privilege escalation (security hardening)
+          allowPrivilegeEscalation: false
+          
+          # Allow writes to root filesystem (needed for async-profiler)
+          # In stricter environments, set to true and use tmpfs for writable dirs
+          readOnlyRootFilesystem: false
+          
+          # Linux capabilities - fine-grained permissions
+          capabilities:
+            # Drop all capabilities first (principle of least privilege)
+            drop:
+            - ALL
+            # Then add only what's needed
+            add:
+            - SYS_ADMIN   # Required for async-profiler (perf_events)
+            - PERFMON     # Required for async-profiler (perf monitoring)
+          
+          # Seccomp profile - restricts system calls
+          # Unconfined: allows all syscalls (needed for profiler)
+          # For production, consider using RuntimeDefault or custom profile
+          seccompProfile:
+            type: Unconfined
+      
+      # Volumes available to containers in the pod
+      volumes:
+      - name: config  # Volume name (referenced in volumeMounts)
+        configMap:
+          name: bottleneck-resolve-config  # ConfigMap to mount
+      
+      # Grace period for pod termination (seconds)
+      # Pod receives SIGTERM, then SIGKILL after this period
+      terminationGracePeriodSeconds: 30
+      
+      # DNS policy for pod
+      # ClusterFirst: use cluster DNS, fallback to host DNS
+      # Other options: Default, ClusterFirstWithHostNet, None
+      dnsPolicy: ClusterFirst
+      
+      # Restart policy for containers in pod
+      # Always: always restart (default for pods in Deployments)
+      # OnFailure: restart only on failure
+      # Never: never restart
+      restartPolicy: Always

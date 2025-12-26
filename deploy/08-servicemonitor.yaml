@@ -1,0 +1,49 @@
+# API version for ServiceMonitor (Prometheus Operator CRD)
+apiVersion: monitoring.coreos.com/v1
+
+# ServiceMonitor - Prometheus Operator custom resource
+# Automatically configures Prometheus to scrape metrics from services
+# Requires Prometheus Operator to be installed in cluster
+kind: ServiceMonitor
+
+metadata:
+  # ServiceMonitor name
+  name: bottleneck-resolve
+  
+  # Namespace where ServiceMonitor is created
+  namespace: bottleneck-resolve
+  
+  # Labels for resource organization
+  labels:
+    app: bottleneck-resolve
+    # release label - Prometheus Operator uses this to select which Prometheus instance
+    # Should match the release label of your Prometheus CR
+    release: prometheus
+
+# ServiceMonitor specification
+spec:
+  # Selector - matches Services to scrape
+  # Must match Service labels
+  selector:
+    matchLabels:
+      app: bottleneck-resolve
+  
+  # Endpoints to scrape from matched services
+  endpoints:
+  - port: http  # Port name from Service (must match Service port name)
+    # Path to metrics endpoint
+    path: /actuator/prometheus
+    # Scrape interval - how often Prometheus scrapes metrics
+    interval: 30s
+    # Timeout for scrape requests
+    scrapeTimeout: 10s
+    
+    # Relabelings - modify labels on scraped metrics
+    relabelings:
+    # Add 'pod' label with pod name to metrics
+    - sourceLabels: [__meta_kubernetes_pod_name]  # Source: pod name metadata
+      targetLabel: pod  # Add as 'pod' label
+    
+    # Add 'namespace' label with namespace to metrics
+    - sourceLabels: [__meta_kubernetes_namespace]  # Source: namespace metadata
+      targetLabel: namespace  # Add as 'namespace' label

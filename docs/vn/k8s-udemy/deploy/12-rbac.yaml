@@ -1,0 +1,27 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: bottleneck-resolve-role
+  namespace: bottleneck-resolve
+  labels:
+    app: bottleneck-resolve
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: bottleneck-resolve-rolebinding
+  namespace: bottleneck-resolve
+  labels:
+    app: bottleneck-resolve
+subjects:
+- kind: ServiceAccount
+  name: bottleneck-resolve
+  namespace: bottleneck-resolve
+roleRef:
+  kind: Role
+  name: bottleneck-resolve-role
+  apiGroup: rbac.authorization.k8s.io

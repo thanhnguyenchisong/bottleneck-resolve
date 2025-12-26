@@ -1,0 +1,95 @@
+# API version for NetworkPolicy resource
+apiVersion: networking.k8s.io/v1
+
+# NetworkPolicy - defines network access rules for pods (firewall rules)
+# By default, all pods can communicate; NetworkPolicy restricts this
+# Requires CNI plugin that supports NetworkPolicy (Calico, Cilium, etc.)
+kind: NetworkPolicy
+
+metadata:
+  # NetworkPolicy name
+  name: bottleneck-resolve-network-policy
+  
+  # Namespace where NetworkPolicy is created
+  namespace: bottleneck-resolve
+  
+  # Labels for resource organization
+  labels:
+    app: bottleneck-resolve
+
+# NetworkPolicy specification
+spec:
+  # Pod selector - which pods this policy applies to
+  # All pods matching these labels will have these rules applied
+  podSelector:
+    matchLabels:
+      app: bottleneck-resolve
+  
+  # Policy types - which direction rules are defined
+  # Ingress: incoming traffic rules
+  # Egress: outgoing traffic rules
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  # Ingress rules - define allowed incoming traffic
+  ingress:
+  # Rule 1: Allow traffic from NGINX Ingress Controller
+  - from:
+    # Match pods in namespaces with this label
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx  # Ingress controller namespace
+    ports:
+    - protocol: TCP
+      port: 8080  # Container port
+  
+  # Rule 2: Allow traffic from Prometheus
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring  # Prometheus namespace
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # Rule 3: Allow traffic from pods in same namespace with same app label
+  # Enables pod-to-pod communication within the deployment
+  - from:
+    - podSelector:
+        matchLabels:
+          app: bottleneck-resolve
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # Egress rules - define allowed outgoing traffic
+  egress:
+  # Rule 1: Allow DNS queries (required for service discovery)
+  - to:
+    # Empty namespaceSelector matches all namespaces
+    - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53  # DNS port
+  
+  # Rule 2: Allow HTTPS to external services
+  - to: []  # Empty selector = any destination (external)
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS port
+  
+  # Rule 3: Allow HTTP to external services
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 80  # HTTP port
+  
+  # Rule 4: Allow egress to Prometheus (for pushing metrics, if needed)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090  # Prometheus port

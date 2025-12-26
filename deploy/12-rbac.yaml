@@ -1,0 +1,67 @@
+# ============================================================================
+# ROLE - Defines permissions within a namespace
+# ============================================================================
+
+# API version for Role resource
+apiVersion: rbac.authorization.k8s.io/v1
+
+# Role - defines a set of permissions (rules) within a namespace
+# Namespace-scoped (unlike ClusterRole which is cluster-scoped)
+kind: Role
+
+metadata:
+  # Role name
+  name: bottleneck-resolve-role
+  
+  # Namespace where Role is created (defines scope of permissions)
+  namespace: bottleneck-resolve
+  
+  # Labels for resource organization
+  labels:
+    app: bottleneck-resolve
+
+# Rules - list of permissions granted by this role
+rules:
+# Rule 1: Allow reading ConfigMaps and Secrets
+- apiGroups: [""]  # Empty string = core API group
+  # Resources this rule applies to
+  resources: ["configmaps", "secrets"]
+  # Allowed actions (verbs)
+  # get: read a specific resource
+  # list: list all resources of this type
+  # watch: watch for changes (used by kubectl get -w)
+  verbs: ["get", "list", "watch"]
+
+# ============================================================================
+# ROLE BINDING - Binds Role to ServiceAccount (grants permissions)
+# ============================================================================
+
+# API version for RoleBinding resource
+apiVersion: rbac.authorization.k8s.io/v1
+
+# RoleBinding - grants permissions defined in Role to subjects (users, groups, ServiceAccounts)
+# Links a Role to one or more subjects
+kind: RoleBinding
+
+metadata:
+  # RoleBinding name
+  name: bottleneck-resolve-rolebinding
+  
+  # Namespace where RoleBinding is created
+  namespace: bottleneck-resolve
+  
+  # Labels for resource organization
+  labels:
+    app: bottleneck-resolve
+
+# Subjects - who gets the permissions (users, groups, or ServiceAccounts)
+subjects:
+- kind: ServiceAccount  # Type of subject
+  name: bottleneck-resolve  # ServiceAccount name (must exist)
+  namespace: bottleneck-resolve  # Namespace of ServiceAccount
+
+# Role reference - which Role to grant
+roleRef:
+  kind: Role  # Type of role (Role or ClusterRole)
+  name: bottleneck-resolve-role  # Role name (must exist in same namespace)
+  apiGroup: rbac.authorization.k8s.io  # API group (required, cannot be changed)
