@@ -624,14 +624,11 @@ data:
     schema_config:
       configs:
       - from: 2020-10-24
-        store: boltdb-shipper
+        store: tsdb
         object_store: filesystem
         schema: v13
-        index:
-          prefix: index_
-          period: 24h
     storage_config:
-      boltdb_shipper:
+      tsdb_shipper:
         active_index_directory: /tmp/loki/index
         cache_location: /tmp/loki/cache
       filesystem:
@@ -678,8 +675,6 @@ spec:
           mountPath: /etc/promtail
         - name: varlog
           mountPath: /var/log
-        - name: varlibdockercontainers
-          mountPath: /var/lib/docker/containers
           readOnly: true
       volumes:
       - name: promtail-config
@@ -688,9 +683,6 @@ spec:
       - name: varlog
         hostPath:
           path: /var/log
-      - name: varlibdockercontainers
-        hostPath:
-          path: /var/lib/docker/containers
 
 ---
 apiVersion: v1
@@ -718,8 +710,11 @@ data:
       kubernetes_sd_configs:
       - role: pod
       pipeline_stages:
-      - docker
+      - cri: {}
       relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_uid]
+        target_label: __path__
+        replacement: /var/log/pods/*$1/*.log
       - source_labels: [__meta_kubernetes_pod_label_app]
         target_label: app
       - source_labels: [__meta_kubernetes_pod_node_name]

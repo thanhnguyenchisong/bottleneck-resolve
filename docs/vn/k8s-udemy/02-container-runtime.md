@@ -1,6 +1,6 @@
-k8s support CRI which support any vender  to work as container runtime (RKT,..) as long as it deal to the OCI standard. but docker was suport by a special `dockershim` so docker can run without of CRI as container runtime
+k8s support CRI which support any vendor to work as container runtime (RKT,..) as long as it adheres to the OCI standard. Docker doesn't implement CRI natively, so Kubernetes used a special translation layer called `dockershim` that converted CRI calls to Docker API calls. This allowed Docker to work with Kubernetes, but dockershim was removed in v1.24.
 
-**ContainerD&#x20;**&#x69;s CRI compatible and can work directly with k8s as all others runtime so containerd can be use as runtime separate docker.
+**containerd** is CRI compatible and can work directly with k8s as all other runtimes so containerd can be used as runtime separate from docker.
 
 **From v1.24** the k8s removed docker support.
 

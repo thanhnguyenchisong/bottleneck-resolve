@@ -127,7 +127,7 @@ CronJob: Chạy Job theo lịch định kỳ (giống cron trong Linux).
 - Ingress: `ing`
 - NetworkPolicy: `netpol`
 - ConfigMap: `cm`
-- Secret: `se`
+- Secret: `secret`
 - PersistentVolume: `pv`
 - PersistentVolumeClaim: `pvc`
 - StorageClass: `sc`
