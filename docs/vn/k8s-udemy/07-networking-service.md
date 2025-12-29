@@ -288,6 +288,10 @@ spec:
 
 NetworkPolicy là firewall rules cho pods, kiểm soát ingress và egress traffic.
 
+NetworkPolicy không kiểm soát traffic từ Internet vào cluster (đó là việc của Ingress Controller, LoadBalancer, firewall).
+
+NetworkPolicy kiểm soát luồng mạng giữa các Pod trong cluster.
+
 **Lưu ý**: Cần CNI plugin hỗ trợ NetworkPolicy (Calico, Cilium, Antrea, etc.)
 
 ### 5.1. NetworkPolicy Basics
