@@ -101,6 +101,18 @@ public interface MyFunctionalInterface {
 ```
 
 ### Built-in Functional Interfaces
+# Java Functional Interfaces
+
+| Interface            | Đầu vào | Đầu ra  | Ý nghĩa / Ứng dụng | Ví dụ |
+|----------------------|---------|---------|--------------------|-------|
+| **Predicate<T>**     | T       | boolean | Kiểm tra điều kiện (true/false) | `Predicate<String> isEmpty = s -> s.isEmpty();` |
+| **Function<T,R>**    | T       | R       | Biến đổi từ T sang R | `Function<String,Integer> length = s -> s.length();` |
+| **Consumer<T>**      | T       | void    | Nhận dữ liệu, xử lý nhưng không trả về | `Consumer<String> printer = s -> System.out.println(s);` |
+| **Supplier<R>**      | none    | R       | Cung cấp dữ liệu, không cần đầu vào | `Supplier<Double> random = () -> Math.random();` |
+| **UnaryOperator<T>** | T       | T       | Biến đổi dữ liệu cùng kiểu | `UnaryOperator<Integer> square = x -> x*x;` |
+| **BinaryOperator<T>**| T,T     | T       | Kết hợp 2 giá trị cùng kiểu thành 1 | `BinaryOperator<Integer> sum = (a,b) -> a+b;` |
+| **BiFunction<T,U,R>**| T,U     | R       | Nhận 2 đầu vào khác kiểu, trả về R | `BiFunction<String,Integer,String> repeat = (s,n) -> s.repeat(n);` |
+
 
 #### 1. Predicate<T>
 
