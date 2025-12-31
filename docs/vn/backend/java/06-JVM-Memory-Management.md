@@ -112,7 +112,7 @@
 
 **Đặc điểm:**
 - Private cho mỗi thread
-- Store local variables, method calls
+- Store local variables, method calls (vs trường hợp object, stack lưu tham chiếu, heap lưu dữ liệu thật của object)
 - Fast access
 
 **Structure:**
