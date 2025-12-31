@@ -210,10 +210,10 @@ class UserService {
 
 **IoC Container** (còn gọi là **Dependency Injection Container**) là trái tim của Spring Framework. Nó có nhiệm vụ:
 
-1. **Tạo và quản lý objects (Beans)**
-2. **Inject dependencies** vào các objects
-3. **Quản lý vòng đời** của objects (lifecycle)
-4. **Cấu hình** các objects
+1. **Cấu hình** các objects
+2. **Tạo và quản lý objects (Beans)**
+3. **Inject dependencies** vào các objects
+4. **Quản lý vòng đời** của objects (lifecycle)
 
 #### Cách hoạt động:
 
