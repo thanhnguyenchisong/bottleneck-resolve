@@ -851,10 +851,10 @@ public class ProdConfig {
 ### Concepts
 
 - **Aspect**: Module cross-cutting concerns
-- **Join Point**: Point trong execution (method call, exception)
-- **Pointcut**: Expression để match join points
+- **Join Point**: Một điểm trong luồng thực thi chương trình, nơi bạn có thể "chen" logic phụ trợ (method call, exception)
+- **Pointcut**: Xác định tập hợp các joint points mà bạn muốn áp dụng các logic bổ sung ( Pointcut Expression để match join points)
 - **Advice**: Action tại join point
-- **Weaving**: Apply aspects to objects
+- **Weaving**: Chèn logic từ aspect vào join point theo quy tắc pointcut
 
 ### Types of Advice
 
