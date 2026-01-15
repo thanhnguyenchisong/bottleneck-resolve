@@ -228,6 +228,62 @@ Set<Person> people = new TreeSet<>((p1, p2) ->
 | **Null allowed** | Yes (1) | Yes (1) | No |
 | **Implementation** | Hash table | Hash table + LinkedList | Red-Black tree |
 
+1️⃣ HashSet
+
+Dựa trên HashMap → cấu trúc hash table
+Không duy trì thứ tự
+Performance:
+
+add → O(1)
+remove → O(1)
+contains → O(1)
+
+
+Không chứa phần tử trùng lặp
+Không có index / không random access
+
+📌 Dùng khi:
+Bạn cần Set đơn giản, hiệu năng cao nhất, không quan tâm thứ tự.
+
+2️⃣ LinkedHashSet
+
+Dựa trên LinkedHashMap
+→ nghĩa là HashMap + doubly linked list để duy trì thứ tự
+Duy trì thứ tự insertion (hoặc access-order nếu bật)
+Performance:
+
+add → O(1)
+remove → O(1)
+contains → O(1)
+
+
+Không chứa phần tử trùng lặp
+Không có index / không random access
+
+📌 Dùng khi:
+Cần Set không trùng lặp nhưng vẫn giữ thứ tự đã thêm.
+
+3️⃣ TreeSet
+
+Dựa trên Red-Black Tree
+Các phần tử được sắp xếp tự động theo:
+
+natural order, hoặc
+comparator bạn cung cấp
+
+
+Performance:
+
+add → O(log n)
+remove → O(log n)
+contains → O(log n)
+
+
+Không hỗ trợ index / random access (vì là cây, không phải mảng)
+
+📌 Dùng khi:
+Cần một Set được sort tự động và hỗ trợ tìm kiếm theo thứ tự (higher(), lower(),…).
+
 **Q: Làm sao để Set không cho phép duplicates?**
 
 Set sử dụng `equals()` và `hashCode()` để check duplicates:
