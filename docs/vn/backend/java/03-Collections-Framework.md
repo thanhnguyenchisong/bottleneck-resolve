@@ -375,8 +375,10 @@ ConcurrentHashMap<String, Integer> concurrentMap = new ConcurrentHashMap<>();
 
 1. **Hash Function**: `hashCode()` của key được hash
 2. **Bucket**: Hash value xác định bucket index
-3. **Collision**: Nhiều keys có cùng hash → stored trong linked list hoặc tree (Java 8+)
+3. **Collision**: Nhiều keys có cùng hash → stored trong linked list hoặc tree (Java 8+) bên trong bucket. Khi size đủ lơn thì nó sẽ huyển từ linked list -> tree. Phần tử trong linked list sẽ có dang [Node: key ="A", value=100] -> [Node: key="B", value=200]
 4. **Load Factor**: Default 0.75, khi 75% full thì resize (double size)
+
+Từ key -> lấy được hash value thông qua hashCode() -> từ hash value chúng ta có được index của bucket -> Từ index bucket chúng ta sẽ lấy được vị trí của bucket và lấy ra giá trị, trong trường hợp collision chúng ta vẫn lấy được đúng giá trị vì nó duyệt các phần tử là có so sánh key để lấy giá trị
 
 ```java
 // HashMap structure
