@@ -134,6 +134,8 @@ List<String> syncList = Collections.synchronizedList(new ArrayList<>());
 - Less random access
 - Implement Queue/Deque
 
+<img width="609" height="296" alt="image" src="https://github.com/user-attachments/assets/0c3b72f8-28c6-48e2-a37a-c97caec6ba62" />
+
 **Q: Có thể tạo ArrayList với initial capacity không?**
 ```java
 ArrayList<String> list = new ArrayList<>(100);  // Initial capacity 100
