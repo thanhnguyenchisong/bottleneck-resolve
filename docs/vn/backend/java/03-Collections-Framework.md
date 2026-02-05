@@ -134,6 +134,8 @@ List<String> syncList = Collections.synchronizedList(new ArrayList<>());
 - Less random access
 - Implement Queue/Deque
 
+<img width="609" height="296" alt="image" src="https://github.com/user-attachments/assets/0c3b72f8-28c6-48e2-a37a-c97caec6ba62" />
+
 **Q: Có thể tạo ArrayList với initial capacity không?**
 ```java
 ArrayList<String> list = new ArrayList<>(100);  // Initial capacity 100
@@ -225,6 +227,62 @@ Set<Person> people = new TreeSet<>((p1, p2) ->
 | **Performance** | O(1) | O(1) | O(log n) |
 | **Null allowed** | Yes (1) | Yes (1) | No |
 | **Implementation** | Hash table | Hash table + LinkedList | Red-Black tree |
+
+1️⃣ HashSet
+
+Dựa trên HashMap → cấu trúc hash table
+Không duy trì thứ tự
+Performance:
+
+add → O(1)
+remove → O(1)
+contains → O(1)
+
+
+Không chứa phần tử trùng lặp
+Không có index / không random access
+
+📌 Dùng khi:
+Bạn cần Set đơn giản, hiệu năng cao nhất, không quan tâm thứ tự.
+
+2️⃣ LinkedHashSet
+
+Dựa trên LinkedHashMap
+→ nghĩa là HashMap + doubly linked list để duy trì thứ tự
+Duy trì thứ tự insertion (hoặc access-order nếu bật)
+Performance:
+
+add → O(1)
+remove → O(1)
+contains → O(1)
+
+
+Không chứa phần tử trùng lặp
+Không có index / không random access
+
+📌 Dùng khi:
+Cần Set không trùng lặp nhưng vẫn giữ thứ tự đã thêm.
+
+3️⃣ TreeSet
+
+Dựa trên Red-Black Tree
+Các phần tử được sắp xếp tự động theo:
+
+natural order, hoặc
+comparator bạn cung cấp
+
+
+Performance:
+
+add → O(log n)
+remove → O(log n)
+contains → O(log n)
+
+
+Không hỗ trợ index / random access (vì là cây, không phải mảng)
+
+📌 Dùng khi:
+Cần một Set được sort tự động và hỗ trợ tìm kiếm theo thứ tự (higher(), lower(),…).
 
 **Q: Làm sao để Set không cho phép duplicates?**
 
@@ -375,8 +433,10 @@ ConcurrentHashMap<String, Integer> concurrentMap = new ConcurrentHashMap<>();
 
 1. **Hash Function**: `hashCode()` của key được hash
 2. **Bucket**: Hash value xác định bucket index
-3. **Collision**: Nhiều keys có cùng hash → stored trong linked list hoặc tree (Java 8+)
+3. **Collision**: Nhiều keys có cùng hash → stored trong linked list hoặc tree (Java 8+) bên trong bucket. Khi size đủ lơn thì nó sẽ huyển từ linked list -> tree. Phần tử trong linked list sẽ có dang [Node: key ="A", value=100] -> [Node: key="B", value=200]
 4. **Load Factor**: Default 0.75, khi 75% full thì resize (double size)
+
+Từ key -> lấy được hash value thông qua hashCode() -> từ hash value chúng ta có được index của bucket -> Từ index bucket chúng ta sẽ lấy được vị trí của bucket và lấy ra giá trị, trong trường hợp collision chúng ta vẫn lấy được đúng giá trị vì nó duyệt các phần tử là có so sánh key để lấy giá trị
 
 ```java
 // HashMap structure
