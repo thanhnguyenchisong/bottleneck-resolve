@@ -494,6 +494,24 @@ public class OrderService {
 | Override bean từ **thư viện bên thứ 3** | Khi chỉ cần thêm logic bọc ngoài (dùng Decorator) |
 | A/B testing: swap implementation | |
 
+#### Bật/Tắt Alternative (Config vs Priority)
+
+1. **Dùng @Priority**: Alternative **luôn active** nếu priority cao hơn.
+2. **Dùng Config (`application.properties`)**: Linh hoạt hơn, bật/tắt theo môi trường mà không cần sửa code.
+
+```java
+// KHÔNG dùng @Priority trên class này
+@Alternative
+@ApplicationScoped
+public class MockPaymentService implements PaymentService { ... }
+```
+
+```properties
+# application.properties (hoặc application-dev.properties)
+# Chỉ định rõ class nào được chọn làm Alternative
+quarkus.arc.selected-alternatives=com.example.MockPaymentService
+```
+
 #### Quarkus-specific: `@IfBuildProfile`
 
 Quarkus cho phép kích hoạt Alternative theo **build profile** mà không cần `@Priority`:
@@ -660,39 +678,89 @@ public class VipDiscountDecorator implements PriceCalculator {
 
 ## Events
 
-### CDI Events
+### Cơ bản: Sync vs Async
 
 ```java
-// Event: Decoupled communication
 // Publisher
 @ApplicationScoped
 public class OrderService {
     @Inject
-    Event<OrderCreatedEvent> orderCreatedEvent;
-    
+    Event<OrderCreatedEvent> eventPublisher;
+
     public void createOrder(Order order) {
-        orderRepository.save(order);
-        // Sync event
-        orderCreatedEvent.fire(new OrderCreatedEvent(order.getId()));
-        
-        // Async event (trả về CompletionStage)
-        orderCreatedEvent.fireAsync(new OrderCreatedEvent(order.getId()))
-            .thenAccept(e -> System.out.println("Async finished"));
+        // 1. Synchronous: Blocking, chạy cùng thread, exception làm rollback transaction
+        eventPublisher.fire(new OrderCreatedEvent(order));
+
+        // 2. Asynchronous: Non-blocking (trả về CompletionStage), chạy thread khác
+        eventPublisher.fireAsync(new OrderCreatedEvent(order))
+            .exceptionally(e -> {
+                log.error("Async fail", e);
+                return null;
+            });
     }
 }
+```
 
-// Observer
+### Advanced Observers
+
+#### 1. Conditional Observer (`notifyObserver`)
+
+Mặc định, CDI sẽ tạo instance của bean chứa observer nếu nó chưa tồn tại.
+Nếu chỉ muốn nhận event **khi bean ĐÃ tồn tại** (để tránh tạo bean không cần thiết):
+
+```java
 @ApplicationScoped
-public class NotificationService {
-    // Synchronous (chạy cùng thread publisher)
-    void onOrderCreated(@Observes OrderCreatedEvent event) {
-        sendNotification(event.getOrderId());
+public class ChatService {
+    // Chỉ nhận event nếu ChatService đang sống (active)
+    void onUserLogin(@Observes(notifyObserver = Reception.IF_EXISTS) UserLoginEvent e) {
+        refreshChatList(e.getUser());
+    }
+}
+```
+
+#### 2. Transaction Phase (`during`)
+
+Rất quan trọng khi làm việc với Database Transaction. Bạn muốn gửi email **sau khi commit thành công** (để tránh gửi mail nhưng DB lại rollback).
+
+```java
+@ApplicationScoped
+public class EmailService {
+    // Chỉ chạy khi transaction commit THÀNH CÔNG
+    void onOrderSuccess(@Observes(during = TransactionPhase.AFTER_SUCCESS) OrderCreatedEvent e) {
+        sendConfirmationEmail(e.getOrderId());
     }
 
-    // Asynchronous (chạy thread khác)
-    void onOrderCreatedAsync(@ObservesAsync OrderCreatedEvent event) {
-        // Heavy processing
+    // Chạy khi transaction thất bại (rollback)
+    void onOrderFail(@Observes(during = TransactionPhase.AFTER_FAILURE) OrderCreatedEvent e) {
+        alertAdmin(e.getOrderId());
     }
+}
+```
+
+| Phase | Mô tả |
+| :--- | :--- |
+| `IN_PROGRESS` | (Default) Chạy ngay lập tức trong transaction |
+| `AFTER_SUCCESS` | Chạy sau khi commit thành công |
+| `AFTER_FAILURE` | Chạy sau khi rollback |
+| `BEFORE_COMPLETION` | Chạy trước khi commit (có thể set rollbackOnly) |
+| `AFTER_COMPLETION` | Chạy sau khi transaction kết thúc (dù thành công hay thất bại) |
+
+#### 3. Ordering (`@Priority`)
+
+Xác định thứ tự chạy của các observer.
+
+```java
+void step1(@Observes @Priority(10) Event e) { ... }
+void step2(@Observes @Priority(20) Event e) { ... }
+```
+
+#### 4. Async Observer
+
+Lưu ý: Async Observer phải đi kèm với `fireAsync()`.
+
+```java
+void onAsync(@ObservesAsync OrderCreatedEvent e) {
+    // Chạy trên thread pool riêng (ForkJoinPool.commonPool() hoặc config)
 }
 ```
 
@@ -700,38 +768,89 @@ public class NotificationService {
 
 ## Interceptors
 
-### Custom Interceptor
+**Interceptor** được dùng cho các "Cross-cutting concerns" (logic cắt ngang) như Logging, Transaction, Security, Cache... tách biệt khỏi business logic.
+
+### 1. Định nghĩa Interceptor Binding
+
+Tạo annotation để đánh dấu nơi cần intercept.
 
 ```java
-// Interceptor annotation
 @InterceptorBinding
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.TYPE, ElementType.METHOD})
+@Target({ElementType.TYPE, ElementType.METHOD}) // Có thể dùng cho Class hoặc Method
 public @interface Logged {
+    // Có thể thêm parameter, ví dụ: boolean detail() default false;
 }
+```
 
-// Interceptor implementation
-@Logged
+### 2. Implement Interceptor
+
+```java
+@Logged // Liên kết với annotation binding
 @Interceptor
-@Priority(Interceptor.Priority.APPLICATION)
+@Priority(Interceptor.Priority.APPLICATION) // Thứ tự chạy (quan trọng nếu có nhiều interceptor)
 public class LoggingInterceptor {
+
     @AroundInvoke
     public Object log(InvocationContext context) throws Exception {
-        System.out.println("Before: " + context.getMethod().getName());
-        Object result = context.proceed();
-        System.out.println("After: " + context.getMethod().getName());
-        return result;
+        // 1. Trước khi gọi method thật
+        String methodName = context.getMethod().getName();
+        Object[] params = context.getParameters();
+        
+        System.out.println(">>> Calling " + methodName + " with " + Arrays.toString(params));
+
+        try {
+            // 2. Gọi method thật (hoặc interceptor tiếp theo)
+            Object result = context.proceed();
+            
+            // 3. Sau khi gọi thành công
+            System.out.println("<<< Return: " + result);
+            return result;
+        } catch (Exception e) {
+            // 4. Khi có lỗi
+            System.out.println("!!! Error: " + e.getMessage());
+            throw e; // Ném tiếp lỗi hoặc nuốt lỗi (tùy logic)
+        }
     }
 }
+```
 
-// Usage
+### 3. Sử dụng
+
+```java
+// Cách 1: Áp dụng cho toàn bộ class (tất cả method public)
 @Logged
 @ApplicationScoped
 public class UserService {
-    public User findById(Long id) {
-        // Interceptor logs before/after
-        return userRepository.findById(id);
-    }
+    public void createUser(String name) { ... } // Sẽ bị intercept
+    public void deleteUser(int id) { ... }      // Sẽ bị intercept
+}
+
+// Cách 2: Áp dụng cho từng method
+@ApplicationScoped
+public class OrderService {
+    
+    @Logged // Chỉ intercept method này
+    public void createOrder(Order order) { ... }
+
+    public void checkStatus(int id) { ... } // Không bị intercept
+}
+```
+
+### Lưu ý quan trọng
+
+1.  **Scope**: Interceptor bean thường là dependent (mặc định), instance được tạo mỗi khi bean bị intercept được tạo.
+2.  **Modifiers**: Không intercept được `private`, `final` methods (trừ khi Quarkus transform bytecode, nhưng nên tránh).
+3.  **Order**: Nếu 1 method có nhiều interceptor (VD: `@Transactional`, `@Logged`, `@Security`), thứ tự dựa vào `@Priority`.
+    - Priority nhỏ chạy trước (ngoài cùng).
+    - Priority lớn chạy sau (gần method gốc nhất).
+4.  **Constructor**: Dùng `@AroundConstruct` để intercept quá trình khởi tạo bean.
+
+```java
+@AroundConstruct
+void init(InvocationContext ctx) {
+    // Chạy trước/sau khi constructor được gọi
+    ctx.proceed();
 }
 ```
 
