@@ -1,11 +1,13 @@
 # Advanced Topics - Câu hỏi phỏng vấn Quarkus
 
 ## Mục lục
-1. [Security](#security)
-2. [Messaging](#messaging)
-3. [Monitoring](#monitoring)
-4. [Configuration](#configuration)
-5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [Security (OIDC & JWT)](#security)
+2. [Messaging (Kafka & Reactive)](#messaging)
+3. [Resilience & Fault Tolerance](#resilience-&-fault-tolerance)
+4. [Writing Extensions](#writing-extensions)
+5. [Monitoring](#monitoring)
+6. [Configuration](#configuration)
+7. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
 
@@ -77,9 +79,55 @@ public class OrderService {
 @ApplicationScoped
 public class NotificationService {
     @Incoming("orders")
-    public void processOrder(OrderEvent event) {
-        sendNotification(event.getOrderId());
+    // Non-blocking processing
+    public CompletionStage<Void> processOrder(OrderEvent event) {
+        return sendNotification(event.getOrderId());
     }
+}
+```
+
+---
+
+## Resilience & Fault Tolerance
+
+Sử dụng SmallRye Fault Tolerance.
+
+```java
+@ApplicationScoped
+public class ResilientService {
+
+    @Timeout(200) // Timeout sau 200ms
+    @Retry(maxRetries = 3) // Thử lại 3 lần
+    @Fallback(fallbackMethod = "defaultData") // Nếu fail hết thì gọi fallback
+    @CircuitBreaker(requestVolumeThreshold = 4) // Ngắt mạch nếu lỗi liên tiếp
+    public String callExternal() {
+        return remoteService.getData();
+    }
+
+    public String defaultData() {
+        return "Cache Data";
+    }
+}
+```
+
+---
+
+## Writing Extensions
+
+Advanced: Tạo custom extension để tối ưu build-time hoặc tích hợp library lạ.
+
+1. **Deployment Module**: Chạy lúc build (`BuildStep`).
+   - Register Bean.
+   - Bytecode recording.
+   - Resource scanning.
+2. **Runtime Module**: Chạy lúc runtime.
+
+```java
+// Example Build Step
+@BuildStep
+void scanBeans(BeanArchiveIndexBuildItem beanArchive,
+               BuildProducer<AdditionalBeanBuildItem> additionalBeans) {
+    // Logic can class và đăng ký bean tự động
 }
 ```
 

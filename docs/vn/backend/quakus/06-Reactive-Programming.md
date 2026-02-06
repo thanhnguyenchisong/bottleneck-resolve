@@ -2,9 +2,9 @@
 
 ## Mục lục
 1. [Mutiny](#mutiny)
-2. [Uni và Multi](#uni-và-multi)
-3. [Reactive Streams](#reactive-streams)
-4. [Non-blocking I/O](#non-blocking-io)
+2. [Uni và Multi Operations](#uni-và-multi-operations)
+3. [Infrastructure & Context Propagation](#infrastructure-&-context-propagation)
+4. [Reactive Streams](#reactive-streams)
 5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
@@ -85,6 +85,57 @@ Multi<String> filtered = multi.filter(s -> s.length() > 1);
 Uni<List<String>> list = multi.collect().asList();
 ```
 
+### Advanced Operations
+
+```java
+// Combine (Parallel Execution)
+Uni<String> u1 = service.call1();
+Uni<Integer> u2 = service.call2();
+
+// Chạy song song u1 và u2, đợi cả 2 xong
+Uni<Tuple2<String, Integer>> both = Uni.combine().all().unis(u1, u2).asTuple();
+
+// Bridging: Blocking -> Reactive
+Uni<String> blockingBridge = Uni.createFrom().emitter(emitter -> {
+    try {
+        String result = heavyBlockingMethod();
+        emitter.complete(result);
+    } catch (Exception e) {
+        emitter.fail(e);
+    }
+});
+```
+
+---
+
+## Infrastructure & Context Propagation
+
+### Event Loop vs Worker Pool
+
+- **Event Loop (IO Thread)**: Xử lý non-blocking code. Ít thread, không được block.
+- **Worker Pool**: Xử lý blocking code (JDBC, File IO).
+
+```java
+// Chuyển đổi thread context
+
+// 1. emitOn: Chỉ định thread pool thực thi upstream (nguồn)
+Uni.createFrom().item(data)
+   .emitOn(Infrastructure.getDefaultWorkerPool()) // Chạy trên worker thread
+   .map(this::heavyProcess);
+
+// 2. runSubscriptionOn: Chỉ định thread khi subscribe
+```
+
+### Context Propagation
+Quarkus tự động propagate context (CDI, Transaction, Security) trong Reactive pipeline, nhưng cần lưu ý khi manually switch thread.
+
+```java
+// SmallRye Context Propagation tự động xử lý
+// SecurityContext sẽ có sẵn ở downstream
+authService.login()
+    .flatMap(token -> service.doSecureAction()); 
+```
+
 ---
 
 ## Reactive Streams
@@ -102,32 +153,6 @@ items.subscribe().with(
     failure -> handleError(failure),  // onFailure
     () -> complete()  // onCompletion
 );
-```
-
----
-
-## Non-blocking I/O
-
-### Reactive REST
-
-```java
-// Reactive REST endpoint
-@Path("/users")
-public class UserResource {
-    @Inject
-    UserService userService;
-    
-    @GET
-    @Path("/{id}")
-    public Uni<User> getUser(@PathParam("id") Long id) {
-        return userService.findByIdAsync(id);
-    }
-    
-    @GET
-    public Multi<User> getAllUsers() {
-        return userService.findAllAsync();
-    }
-}
 ```
 
 ---

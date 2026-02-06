@@ -3,9 +3,11 @@
 ## Mục lục
 1. [Quarkus là gì?](#quarkus-là-gì)
 2. [Quarkus vs Spring Boot](#quarkus-vs-spring-boot)
-3. [Supersonic Subatomic Java](#supersonic-subatomic-java)
-4. [Build và Runtime](#build-và-runtime)
-5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+3. [Architecture & Extensions](#architecture-&-extensions)
+4. [Continuous Testing & Dev Mode](#continuous-testing-&-dev-mode)
+5. [Configuration](#configuration)
+6. [Build và Runtime](#build-và-runtime)
+7. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
 
@@ -86,36 +88,49 @@ public class UserResource {
 
 ---
 
-## Supersonic Subatomic Java
+## Architecture & Extensions
 
-### Build Time Optimization
+### How Extensions Work
+Khác với thư viện thường, **Quarkus Extensions** có 2 phần:
+1.  **Runtime**: Code chạy trong ứng dụng (như thư viện thường).
+2.  **Deployment (Build-time)**: Code chạy lúc build để cấu hình framework, bytecode recording, tối ưu hóa.
 
-```java
-// Quarkus optimizes at build time:
-// 1. Classpath scanning → Build-time metadata
-// 2. Reflection → Substitution
-// 3. Dynamic proxies → Build-time generation
-// 4. Configuration → Build-time validation
+Ví dụ: `quarkus-hibernate-orm` sẽ scan entity, cấu hình session factory ngay lúc build, giúp startup nhanh.
 
-// Result:
-// - Faster startup
-// - Lower memory
-// - Better performance
-```
+---
 
-### Build-time vs Runtime
+## Continuous Testing & Dev Mode
 
-```java
-// Build-time (Quarkus):
-// - Classpath scanning
-// - Bean discovery
-// - Configuration validation
-// - Code generation
+### Dev Mode (`quarkus dev`)
+- **Hot Reload**: Live coding, thay đổi Java/Config/Resource apply ngay lập tức.
+- **Error Page**: Hiển thị stacktrace chi tiết và gợi ý sửa lỗi ngay trên trình duyệt.
+- **Dev UI** (`/q/dev`): Giao diện quản lý extensions, xem config, log, beans...
 
-// Runtime (Traditional):
-// - Classpath scanning (slow)
-// - Reflection (expensive)
-// - Dynamic proxies (memory)
+### Continuous Testing
+- Bấm `r` trong terminal dev mode để chạy lại test.
+- Tự động chạy lại các test bị ảnh hưởng khi sửa code.
+- Feedback loop cực nhanh.
+
+---
+
+## Configuration
+
+### Profiles
+Quarkus hỗ trợ các profile khác nhau (`dev`, `test`, `prod`).
+
+```properties
+# application.properties
+
+# Global
+quarkus.http.port=8080
+
+# Dev profile
+%dev.quarkus.log.level=DEBUG
+%dev.quarkus.datasource.db-kind=h2
+
+# Prod profile
+%prod.quarkus.datasource.db-kind=postgresql
+%prod.quarkus.datasource.username=${DB_USER}
 ```
 
 ---

@@ -3,8 +3,8 @@
 ## Mục lục
 1. [GraalVM Native Image](#graalvm-native-image)
 2. [Build Native Executable](#build-native-executable)
-3. [Native Image Limitations](#native-image-limitations)
-4. [Performance](#performance)
+3. [Native Image Limitations & Config](#native-image-limitations-&-config)
+4. [Monitoring & Performance](#monitoring-&-performance)
 5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
@@ -50,36 +50,37 @@
 
 ---
 
-## Native Image Limitations
+## Native Image Limitations & Config
 
-### Reflection
+### Reflection & Dynamic Features
 
-```java
-// Reflection: Must be configured
-// Register classes for reflection
+Native Image không hỗ trợ dynamic loading mặc định. Cần đăng ký:
 
-@RegisterForReflection
-public class User {
-    // Registered for reflection
-}
+1. **Annotation**: `@RegisterForReflection`
+2. **Config File**: `reflection-config.json`
+3. **Extension**: Hầu hết Quarkus extension đã tự xử lý việc này.
 
-// Or in application.properties
-quarkus.native.additional-build-args=--initialize-at-build-time=com.example.User
+### Resources
+Resource file (ảnh, properties) không tự động include vào binary. Cần config:
+```properties
+quarkus.native.resources.includes=docs/*,images/*.png
 ```
 
-### Dynamic Features
-
-```java
-// Limitations:
-// - No dynamic class loading
-// - Limited reflection
-// - No JNI
-// - Some libraries not supported
+### SSL/TLS
+Mặc định SSL chỉ enable nếu extension yêu cầu. Để ép enable:
+```properties
+quarkus.ssl.native=true
 ```
 
 ---
 
-## Performance
+## Monitoring & Performance
+
+### JFR (Java Flight Recorder)
+Native Image hỗ trợ JFR để profiling (cần GraalVM Enterprise hoặc phiên bản mới).
+```bash
+./target/myapp -XX:StartFlightRecording=filename=recording.jfr
+```
 
 ### Startup Time
 

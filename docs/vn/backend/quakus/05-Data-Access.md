@@ -2,10 +2,11 @@
 
 ## Mục lục
 1. [Hibernate ORM](#hibernate-orm)
-2. [Panache](#panache)
-3. [Reactive SQL Clients](#reactive-sql-clients)
-4. [Transactions](#transactions)
-5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+2. [Panache (Repository vs Active Record)](#panache-repository-vs-active-record)
+3. [Projections & Locking](#projections-&-locking)
+4. [Hibernate Reactive](#hibernate-reactive)
+5. [Transactions & Multi-tenancy](#transactions-&-multi-tenancy)
+6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
 
@@ -53,81 +54,151 @@ public class UserRepository {
 
 ---
 
-## Panache
+## Panache (Repository vs Active Record)
 
-### Panache Entity
+### Active Record Pattern
+Entity tự quản lý persistence của chính nó.
+- **Ưu điểm**: Ngắn gọn, code nằm cùng dữ liệu.
+- **Nhược điểm**: Entity bị couple với logic truy xuất data, khó mock/test riêng biệt, vi phạm Single Responsibility Principle nếu quá phức tạp.
 
 ```java
-// Panache: Simplifies data access
 @Entity
 public class User extends PanacheEntity {
-    public String username;
-    public String email;
+    public String name;
     
-    // No need for getters/setters
-    // Panache provides them
+    // Logic business trên entity
+    public static User findByName(String name) {
+        return find("name", name).firstResult();
+    }
 }
-
-// Usage
-User user = User.findById(1L);
-List<User> users = User.listAll();
-User user = User.find("username", "john").firstResult();
+// Usage: User.findByName("Alice");
 ```
 
-### Panache Repository
+### Repository Pattern
+Tách biệt logic truy xuất data ra khỏi entity.
+- **Ưu điểm**: Tách biệt rõ ràng (Clean Architecture), dễ mock test, linh hoạt đổi implementation.
+- **Nhược điểm**: Boilerplate code (cần tạo class Repository).
 
 ```java
-// Panache Repository
 @ApplicationScoped
 public class UserRepository implements PanacheRepository<User> {
-    public User findByUsername(String username) {
-        return find("username", username).firstResult();
-    }
-    
-    public List<User> findActiveUsers() {
-        return find("active", true).list();
+    public User findByName(String name) {
+        return find("name", name).firstResult();
     }
 }
-
-// Usage
-@Inject
-UserRepository userRepository;
-
-User user = userRepository.findByUsername("john");
+// Usage: repo.findByName("Alice");
 ```
+
+### Khi nào dùng cái nào?
+- **Active Record**: CRUD đơn giản, prototype nhanh.
+- **Repository**: Dự án lớn, logic phức tạp, cần clean architecture.
 
 ---
 
-## Reactive SQL Clients
+## Projections & Locking
 
-### Reactive PostgreSQL Client
+### Projections (DTOs)
+Tránh fetch dư thừa column, tăng hiệu năng (chỉ select field cần thiết).
 
 ```java
-// Reactive SQL Client
-@ApplicationScoped
-public class UserRepository {
-    @Inject
-    ReactiveSqlClient client;
-    
-    public Uni<List<User>> findAll() {
-        return client.query("SELECT * FROM users")
-            .mapping(User::from)
-            .collect().asList();
-    }
-    
-    public Uni<User> findById(Long id) {
-        return client.query("SELECT * FROM users WHERE id = $1", id)
-            .mapping(User::from)
-            .collect().first();
+// DTO (Java Record hoặc Class)
+public record UserSummary(String name, String email) {}
+
+// Query projection
+List<UserSummary> summaries = User.find("active", true)
+    .project(UserSummary.class)
+    .list();
+// SQL sinh ra chỉ select name, email
+```
+
+### Locking
+Xử lý concurrency.
+
+```java
+// Pessimistic Lock (SELECT FOR UPDATE)
+User.find("id", 1L, LockModeType.PESSIMISTIC_WRITE).firstResult();
+
+// Optimistic Lock (Versioning)
+@Version
+public int version; // Tự động check version khi update
+```
+
+---
+
+## Hibernate Reactive
+
+Sử dụng Panache với non-blocking driver (Postgres/MySQL Reactive).
+
+```java
+@Entity
+public class User extends PanacheEntity { // Reactive PanacheEntity
+    public String name;
+}
+
+// Trả về Uni/Multi thay vì Object/List
+@GET
+public Uni<User> get(Long id) {
+    return User.<User>findById(id); // Non-blocking
+}
+
+@POST
+public Uni<Response> create(User user) {
+    return Panache.withTransaction(user::persist) // Transaction reactive
+        .map(v -> Response.ok(user).build());
+}
+```
+
+---
+
+## Transactions & Multi-tenancy
+
+### Programmatic Transaction
+Kiểm soát transaction bằng code thay vì annotation.
+
+```java
+QuarkusTransaction.begin();
+try {
+    // DB operations
+    QuarkusTransaction.commit();
+} catch (Exception e) {
+    QuarkusTransaction.rollback();
+}
+```
+
+### Multi-tenancy (Đa người dùng)
+Hỗ trợ Database-per-tenant hoặc Schema-per-tenant.
+
+```properties
+# Schema approach
+quarkus.hibernate-orm.multitenant=SCHEMA
+```
+
+```java
+// Resolver tenant từ request (header, jwt)
+@PersistenceUnitExtension
+@RequestScoped
+public class CustomTenantResolver implements TenantResolver {
+    @Override
+    public String resolveTenantId() {
+        return "tenant_1"; // Lấy từ context
     }
 }
 ```
 
 ---
 
-## Transactions
-
 ### @Transactional
+
+```java
+// Declarative Transaction
+// REQUIRED (default): Join existing or create new
+@Transactional
+public void doSomething() { ... }
+
+// REQUIRES_NEW: Always new transaction
+@Transactional(TxType.REQUIRES_NEW)
+public void doIndependent() { ... }
+```
 
 ```java
 // Transactional method

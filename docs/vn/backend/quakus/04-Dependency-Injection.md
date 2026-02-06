@@ -7,15 +7,20 @@
 4. [Programmatic Lookup: Instance&lt;T&gt; và Provider&lt;T&gt;](#programmatic-lookup)
 5. [Producers và Disposers](#producers-và-disposers)
 6. [Lifecycle callbacks](#lifecycle-callbacks)
-7. [Events](#events)
-8. [Interceptors](#interceptors)
-9. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+7. [Advanced CDI Features](#advanced-cdi-features)
+8. [Events](#events)
+9. [Interceptors](#interceptors)
+10. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
 
 ## CDI (Contexts and Dependency Injection)
 
-### CDI Basics
+### CDI Basics & ArC (Quarkus)
+
+Quarkus sử dụng **ArC** - một implement CDI build-time optimization.
+- **Build-time**: Phân tích metadata lúc build, không dùng reflection lúc runtime (trừ khi cần thiết), giúp startup cực nhanh.
+- **Unused beans**: Mặc định Quarkus xóa các bean không được dùng (`quarkus.arc.remove-unused-beans=true`) để giảm memory.
 
 ```java
 // CDI: Jakarta Contexts and Dependency Injection
@@ -102,19 +107,18 @@ public class ConfigService {
 public class HelperService {
     // Mỗi bean inject HelperService sẽ có 1 instance HelperService riêng
 }
-
-@ApplicationScoped
-public class UserService {
-    @Inject
-    HelperService helper;  // Instance A
-}
-
-@ApplicationScoped
-public class OrderService {
-    @Inject
-    HelperService helper;  // Instance B (khác Instance A)
-}
 ```
+
+### Normal Scope vs Pseudo Scope (Client Proxy)
+
+- **Normal Scope** (@ApplicationScoped, @RequestScoped):
+  - Inject một **Client Proxy** (obj giả), không phải instance thật.
+  - Proxy delegating method call tới instance thật active trong context hiện tại.
+  - Cho phép inject bean scope ngắn (Request) vào bean scope dài (Application) mà không lỗi.
+
+- **Pseudo Scope** (@Dependent, @Singleton):
+  - Inject **Direct Reference** (instance thật).
+  - Performance tốt hơn chút do không qua proxy, nhưng cẩn thận memory leak nếu inject Dependent vào ApplicationScoped (Dependent bean sẽ sống mãi cùng Application bean).
 
 ---
 
@@ -271,6 +275,61 @@ public class StartupService {
 
 ---
 
+## Advanced CDI Features
+
+### Alternatives & Priority
+
+Thay thế implementation bean (ví dụ cho môi trường test hoặc mock).
+
+```java
+// Default implementation
+@ApplicationScoped
+public class RealPaymentService implements PaymentService { ... }
+
+// Mock implementation (active khi có priority cao hơn)
+@Alternative
+@Priority(1) // Priority cao hơn default
+@ApplicationScoped
+public class MockPaymentService implements PaymentService { ... }
+```
+
+### Stereotypes
+
+Gom nhóm các annotation lại thành một annotation mới để tái sử dụng.
+
+```java
+@Stereotype
+@ApplicationScoped
+@Transactional
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface Service {
+    // Giờ chỉ cần dùng @Service thay vì viết lại cả 3 dòng
+}
+```
+
+### Decorators
+
+Bọc (wrap) một bean để thêm logic business (khác Interceptor là kỹ thuật, Decorator là business).
+
+```java
+@Decorator
+@Priority(10)
+public class DiscountDecorator implements PriceCalculator {
+    @Inject
+    @Delegate // Inject instance gốc
+    @Any
+    PriceCalculator delegate;
+
+    public double calculate(Product p) {
+        double original = delegate.calculate(p);
+        return original * 0.9; // Giảm giá 10%
+    }
+}
+```
+
+---
+
 ## Events
 
 ### CDI Events
@@ -285,15 +344,26 @@ public class OrderService {
     
     public void createOrder(Order order) {
         orderRepository.save(order);
+        // Sync event
         orderCreatedEvent.fire(new OrderCreatedEvent(order.getId()));
+        
+        // Async event (trả về CompletionStage)
+        orderCreatedEvent.fireAsync(new OrderCreatedEvent(order.getId()))
+            .thenAccept(e -> System.out.println("Async finished"));
     }
 }
 
 // Observer
 @ApplicationScoped
 public class NotificationService {
+    // Synchronous (chạy cùng thread publisher)
     void onOrderCreated(@Observes OrderCreatedEvent event) {
         sendNotification(event.getOrderId());
+    }
+
+    // Asynchronous (chạy thread khác)
+    void onOrderCreatedAsync(@ObservesAsync OrderCreatedEvent event) {
+        // Heavy processing
     }
 }
 ```
@@ -364,7 +434,13 @@ public class UserService {
 ### Q3: @Dependent khác gì ApplicationScoped?
 
 - **@Dependent**: mỗi injection point một instance riêng, lifecycle gắn với bean chứa nó (pseudo-scope).
-- **@ApplicationScoped**: một instance dùng chung toàn app (normal scope).
+- **@ApplicationScoped**: một instance dùng chung toàn app (normal scope), inject qua **Client Proxy**.
+
+### Q4: Client Proxy là gì?
+
+- Là object trung gian mà CDI inject vào thay vì instance thật (với Normal Scope).
+- Giúp lazy initialization và xử lý scope mismatch (VD: inject RequestScoped vào ApplicationScoped).
+- Khi gọi method trên proxy, nó mới tìm instance thật trong context hiện tại để delegate.
 
 ---
 
@@ -372,22 +448,18 @@ public class UserService {
 
 1. **Use CDI**: Standard, powerful
 2. **Constructor injection**: Recommended
-3. **Proper scopes**: Choose right scope (kể cả @Dependent khi cần)
-4. **Use qualifiers**: For multiple implementations
-5. **Instance/Provider**: Optional hoặc programmatic lookup khi cần
-6. **@Produces**: Khi tạo bean từ config/factory
-7. **Events**: For decoupled communication
-8. **@PostConstruct/@PreDestroy**: Khởi tạo và dọn dẹp đúng lifecycle
+3. **Proper scopes**: Hiểu rõ Client Proxy vs Direct Reference.
+4. **Package-private**: Trong Quarkus, nên để field/method injection là package-private (bỏ `private`) để tối ưu reflection.
+5. **Use qualifiers**: For multiple implementations
+6. **Instance/Provider**: Optional hoặc programmatic lookup khi cần
+7. **Events**: Decoupled communication (dùng Async nếu task nặng)
 
 ---
 
 ## Tổng kết
 
-- **CDI**: Standard dependency injection
-- **Bean Scopes**: ApplicationScoped, RequestScoped, Singleton, **Dependent**
-- **Qualifiers**: Multiple implementations
-- **Instance&lt;T&gt; / Provider&lt;T&gt;**: Programmatic, lazy, optional
-- **Producers/Disposers**: Tạo và hủy bean theo điều kiện
-- **Lifecycle**: @PostConstruct, @PreDestroy
-- **Events**: Decoupled communication
-- **Interceptors**: Cross-cutting concerns
+- **CDI/ArC**: Build-time dependency injection.
+- **Bean Scopes**: Normal (@ApplicationScoped) vs Pseudo (@Dependent).
+- **Client Proxy**: Cơ chế inject của Normal scopes.
+- **Advanced**: Alternatives, Stereotypes, Decorators.
+- **Events**: Sync vs Async observers.

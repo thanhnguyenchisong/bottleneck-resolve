@@ -1,11 +1,12 @@
 # Testing - Câu hỏi phỏng vấn Quarkus
 
 ## Mục lục
-1. [Unit Testing](#unit-testing)
-2. [Integration Testing](#integration-testing)
-3. [Testcontainers](#testcontainers)
-4. [Mocking](#mocking)
-5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [Unit Testing (@QuarkusTest)](#unit-testing)
+2. [Mocking (@InjectMock)](#mocking)
+3. [Dev Services (Zero Config)](#dev-services)
+4. [Test Profiles](#test-profiles)
+5. [Integration Testing](#integration-testing)
+6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
 
@@ -30,77 +31,72 @@ class UserResourceTest {
 
 ---
 
-## Integration Testing
+## Mocking (@InjectMock)
 
-### @QuarkusIntegrationTest
-
-```java
-// Integration test
-@QuarkusIntegrationTest
-class UserResourceIT {
-    @Test
-    void testCreateUser() {
-        User user = new User("John", "john@example.com");
-        given()
-            .contentType(ContentType.JSON)
-            .body(user)
-            .when().post("/users")
-            .then()
-            .statusCode(201);
-    }
-}
-```
-
----
-
-## Testcontainers
-
-### Database Testing
+### @InjectMock (Mockito)
 
 ```java
-// Testcontainers cho database
 @QuarkusTest
-@Testcontainers
-class UserRepositoryTest {
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:13")
-            .withDatabaseName("testdb");
-    
-    @Test
-    void testFindById() {
-        // Test với real database
-    }
-}
-```
+public class UserServiceTest {
 
----
+    @InjectMock
+    UserRepository userRepository; // Tự động tạo Mockito mock và inject vào bean
 
-## Mocking
-
-### @Mock
-
-```java
-// Mock với @Mock
-@QuarkusTest
-class UserServiceTest {
-    @Mock
-    UserRepository userRepository;
-    
     @Inject
     UserService userService;
-    
+
     @Test
-    void testFindById() {
-        when(userRepository.findById(1L)).thenReturn(Optional.of(new User()));
-        User user = userService.findById(1L);
-        assertNotNull(user);
+    public void test() {
+        Mockito.when(userRepository.count()).thenReturn(10L);
+        Assertions.assertEquals(10L, userService.getUserCount());
     }
 }
 ```
 
+### QuarkusMock (Programmatic)
+
+```java
+// Mocking static methods hoặc object không quản lý bởi CDI
+QuarkusMock.installMockForType(new MockExternalService(), ExternalService.class);
+```
+
 ---
 
-## Câu hỏi thường gặp
+## Dev Services (Zero Config)
+
+Quarkus tự động start Database, Kafka, Redis... bằng Testcontainers mà **không cần config** gì cả.
+
+- Chỉ cần dependency (VD: `quarkus-jdbc-postgresql`).
+- Không khai báo URL trong `application.properties`.
+- Quarkus sẽ tự pull image, start container và wire cấu hình vào app.
+
+```bash
+# Tắt Dev Services nếu muốn dùng DB thật
+quarkus.datasource.devservices.enabled=false
+```
+
+---
+
+## Test Profiles
+
+Chạy test với các cấu hình khác nhau.
+
+```java
+public class MockProfile implements QuarkusTestProfile {
+    @Override
+    public Map<String, String> getConfigOverrides() {
+        return Map.of("quarkus.hibernate-orm.database.generation", "drop-and-create");
+    }
+}
+
+@QuarkusTest
+@TestProfile(MockProfile.class)
+public class ProfileTest { ... }
+```
+
+---
+
+## Integration Testing
 
 ### Q1: @QuarkusTest vs @QuarkusIntegrationTest?
 
