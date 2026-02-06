@@ -208,56 +208,195 @@ public class UserService {
 
 ## Programmatic Lookup
 
+### Tại sao cần Programmatic Lookup?
+
+Bình thường `@Inject` resolve bean lúc **build-time** (cố định). Nhưng có những lúc bạn cần:
+- Chọn bean **lúc runtime** (theo config, input user).
+- Dependency **optional** (có thể không tồn tại).
+- **Lazy**: Chỉ tạo bean khi thật sự cần.
+- Lấy **nhiều bean** cùng interface (Strategy/Plugin pattern).
+
+-> Dùng `Instance<T>` hoặc `Provider<T>`.
+
+---
+
 ### Instance&lt;T&gt;
 
+`jakarta.enterprise.inject.Instance<T>` — CDI API, mạnh mẽ nhất.
+
+#### Khi nào NÊN dùng Instance&lt;T&gt;
+
+**1. Strategy / Plugin Pattern — Nhiều bean cùng interface, chọn lúc runtime**
+
 ```java
-// Instance<T>: Lookup programmatic, lazy, hoặc lấy nhiều bean cùng type
+// Có nhiều PaymentHandler: Momo, VNPay, Stripe...
+// Không biết trước dùng cái nào -> chọn lúc runtime
 @ApplicationScoped
 public class PaymentRouter {
     @Inject
-    Instance<PaymentHandler> handlers;  // Tất cả bean implement PaymentHandler
+    Instance<PaymentHandler> handlers;  // Inject TẤT CẢ implementations
 
     public void pay(Order order) {
         for (PaymentHandler h : handlers) {
-            if (h.supports(order.getMethod())) {
+            if (h.supports(order.getPaymentMethod())) {
                 h.handle(order);
                 return;
             }
         }
+        throw new UnsupportedPaymentException(order.getPaymentMethod());
     }
 }
+```
 
-// Optional / lazy: chỉ resolve khi cần
-@Inject
-Instance<OptionalFeature> optionalFeature;
+**2. Optional Dependency — Bean có thể không tồn tại**
 
-void use() {
-    if (optionalFeature.isUnsatisfied()) return;  // Không có bean nào
-    if (optionalFeature.isAmbiguous()) return;   // Nhiều bean, cần qualifier
-    optionalFeature.get().doSomething();         // Lazy get
+```java
+// Feature toggle: module analytics có thể không được cài
+@ApplicationScoped
+public class DashboardService {
+    @Inject
+    Instance<AnalyticsService> analytics;
+
+    public Dashboard load() {
+        Dashboard d = buildBasicDashboard();
+        if (analytics.isResolvable()) {          // Có bean không?
+            d.setStats(analytics.get().getStats());
+        }
+        // Nếu không có AnalyticsService -> App vẫn chạy bình thường
+        return d;
+    }
 }
 ```
+
+**3. Chọn bean bằng Qualifier lúc runtime**
+
+```java
+@Inject
+@Any  // Inject tất cả, kể cả bean có qualifier khác nhau
+Instance<NotificationSender> senders;
+
+public void send(String channel, String msg) {
+    // Select theo qualifier lúc runtime
+    Instance<NotificationSender> selected = senders
+        .select(new ChannelLiteral(channel));  // VD: "email", "sms", "push"
+    
+    if (selected.isResolvable()) {
+        selected.get().send(msg);
+    }
+}
+```
+
+**4. Destroy @Dependent bean thủ công (tránh Memory Leak)**
+
+```java
+@Inject
+Instance<HeavyWorker> workerInstance;  // HeavyWorker là @Dependent
+
+public void process() {
+    Instance.Handle<HeavyWorker> handle = workerInstance.getHandle();
+    HeavyWorker worker = handle.get();
+    try {
+        worker.doWork();
+    } finally {
+        handle.destroy();  // Giải phóng ngay, không chờ bean cha chết
+    }
+}
+```
+
+#### API chính của Instance&lt;T&gt;
+
+| Method | Mô tả |
+| :--- | :--- |
+| `get()` | Lấy 1 instance (ném `AmbiguousResolutionException` nếu > 1 bean) |
+| `isResolvable()` | `true` nếu có đúng 1 bean match |
+| `isUnsatisfied()` | `true` nếu không có bean nào |
+| `isAmbiguous()` | `true` nếu có nhiều bean (cần qualifier để chọn) |
+| `iterator()` / `stream()` | Duyệt tất cả beans |
+| `select(Qualifier...)` | Lọc bean theo qualifier lúc runtime |
+| `getHandle()` | Trả về Handle để quản lý lifecycle (`destroy()`) |
+
+---
 
 ### Provider&lt;T&gt;
 
+`jakarta.inject.Provider<T>` — JSR-330, đơn giản hơn, chỉ có `get()`.
+
+#### Khi nào NÊN dùng Provider&lt;T&gt;
+
+**1. Lazy Init đơn giản — Trì hoãn tạo bean nặng**
+
 ```java
-// javax.inject.Provider<T>: Lazy — mỗi lần get() mới resolve (theo scope)
 @ApplicationScoped
 public class ReportService {
     @Inject
-    Provider<RequestScopedReportContext> contextProvider;
+    Provider<PdfEngine> pdfEngineProvider;  // PdfEngine init rất nặng (load font, template...)
 
-    public Report build() {
-        RequestScopedReportContext ctx = contextProvider.get();  // Lấy instance theo request
-        return ctx.buildReport();
+    public void export(Report report) {
+        if (report.needsPdf()) {
+            PdfEngine engine = pdfEngineProvider.get();  // Chỉ init khi thật sự cần xuất PDF
+            engine.render(report);
+        }
+        // Nếu không cần PDF -> PdfEngine KHÔNG BAO GIỜ được tạo -> tiết kiệm tài nguyên
     }
 }
 ```
 
+**2. Lấy đúng instance theo Scope hiện tại — Request-scoped bean trong Application-scoped bean**
+
+```java
+@ApplicationScoped
+public class AuditService {
+    @Inject
+    Provider<SecurityContext> securityCtxProvider;  // @RequestScoped
+
+    public void log(String action) {
+        // Mỗi lần gọi get() -> lấy SecurityContext của REQUEST HIỆN TẠI
+        String user = securityCtxProvider.get().getCurrentUser();
+        auditRepo.save(new AuditLog(user, action));
+    }
+}
+```
+
+**3. Tạo nhiều instance @Dependent mới**
+
+```java
+@ApplicationScoped
+public class TaskManager {
+    @Inject
+    Provider<TaskWorker> workerProvider;  // TaskWorker là @Dependent
+
+    public void runBatch(List<Task> tasks) {
+        for (Task t : tasks) {
+            TaskWorker worker = workerProvider.get();  // Mỗi lần get() -> instance MỚI
+            worker.execute(t);
+        }
+    }
+}
+```
+
+---
+
+### So sánh Instance&lt;T&gt; vs Provider&lt;T&gt;
+
 | | Instance&lt;T&gt; | Provider&lt;T&gt; |
-|---|------------------|-------------------|
-| **Mục đích** | Nhiều bean, optional, iterate | Lazy đơn giản |
-| **API** | `get()`, `isUnsatisfied()`, `isAmbiguous()`, `iterator()` | Chỉ `get()` |
+| :--- | :--- | :--- |
+| **Spec** | CDI (Jakarta EE) | JSR-330 (javax/jakarta.inject) |
+| **API** | `get()`, `isUnsatisfied()`, `isAmbiguous()`, `select()`, `stream()`, `getHandle()` | Chỉ `get()` |
+| **Nhiều bean** | Iterate / select lúc runtime | Không hỗ trợ |
+| **Optional check** | `isResolvable()`, `isUnsatisfied()` | Không (ném exception nếu không có) |
+| **Destroy thủ công** | `getHandle().destroy()` | Không |
+| **Khi nào dùng** | Nhiều bean, optional, strategy pattern, plugin | Lazy đơn giản, lấy instance theo scope |
+
+#### Quy tắc chọn nhanh
+
+- **Chỉ cần lazy 1 bean** -> `Provider<T>` (đơn giản, đủ dùng).
+- **Nhiều bean, optional, select runtime** -> `Instance<T>`.
+- **Cần destroy @Dependent thủ công** -> `Instance<T>` (bắt buộc).
+
+#### Khi nào KHÔNG nên dùng
+
+- Bean đã là **Normal Scope** (`@ApplicationScoped`, `@RequestScoped`): CDI đã tự Lazy Init qua Client Proxy rồi -> dùng `@Inject` thẳng là đủ, không cần Provider.
+- Chỉ có **1 bean duy nhất** và nó **luôn tồn tại** -> `@Inject` trực tiếp đơn giản hơn.
 
 ---
 
@@ -455,11 +594,11 @@ public class UserService {
 // - Runtime processing
 ```
 
-### Q2: Instance&lt;T&gt; dùng khi nào?
+### Q2: Instance&lt;T&gt; vs Provider&lt;T&gt;?
 
-- Cần **nhiều bean** cùng type (iterate, chọn theo runtime).
-- Dependency **optional** (kiểm tra `isUnsatisfied()`).
-- **Lazy** resolve (chỉ get khi cần).
+- **Provider&lt;T&gt;**: Lazy đơn giản (chỉ `get()`). Dùng khi trì hoãn init 1 bean nặng hoặc lấy instance theo scope hiện tại.
+- **Instance&lt;T&gt;**: Nhiều bean (Strategy/Plugin), optional dependency, select qualifier lúc runtime, destroy @Dependent thủ công.
+- **Không cần cả hai**: Khi bean là Normal Scope (đã Lazy qua Proxy) và chỉ có 1 implementation -> `@Inject` thẳng.
 
 ### Q3: @Dependent khác gì ApplicationScoped?
 
