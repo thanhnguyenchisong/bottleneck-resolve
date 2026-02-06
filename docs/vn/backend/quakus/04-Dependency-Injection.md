@@ -448,54 +448,213 @@ public class StartupService {
 
 ### Alternatives & Priority
 
-Thay thế implementation bean (ví dụ cho môi trường test hoặc mock).
+#### Vấn đề
+
+Khi có **nhiều bean cùng implement 1 interface**, CDI không biết chọn cái nào -> `AmbiguousResolutionException`.
+`@Alternative` cho phép **thay thế** bean mặc định mà **không cần sửa code gốc**.
+
+#### Cách dùng
 
 ```java
-// Default implementation
+// ===== BƯỚC 1: Bean mặc định =====
 @ApplicationScoped
-public class RealPaymentService implements PaymentService { ... }
+public class RealPaymentService implements PaymentService {
+    @Override
+    public void pay(Order order) {
+        // Gọi API thanh toán thật (Stripe, VNPay...)
+        stripeClient.charge(order.getAmount());
+    }
+}
 
-// Mock implementation (active khi có priority cao hơn)
+// ===== BƯỚC 2: Bean thay thế (cho test/dev) =====
+@Alternative                 // Đánh dấu: "Tôi là bản thay thế"
+@Priority(1)                 // Bật và set priority (cao hơn = ưu tiên hơn)
+@ApplicationScoped
+public class MockPaymentService implements PaymentService {
+    @Override
+    public void pay(Order order) {
+        // KHÔNG gọi API thật, chỉ log
+        log.info("MOCK payment: {}", order.getAmount());
+    }
+}
+
+// ===== BƯỚC 3: Code inject KHÔNG CẦN THAY ĐỔI =====
+@ApplicationScoped
+public class OrderService {
+    @Inject
+    PaymentService paymentService;  // CDI tự chọn MockPaymentService vì có @Alternative + @Priority
+}
+```
+
+#### Khi nào dùng
+
+| Dùng | Không dùng |
+| :--- | :--- |
+| Thay bean cho **test** / **dev profile** | Khi cần **cả 2 bean cùng lúc** (dùng Qualifier thay thế) |
+| Override bean từ **thư viện bên thứ 3** | Khi chỉ cần thêm logic bọc ngoài (dùng Decorator) |
+| A/B testing: swap implementation | |
+
+#### Quarkus-specific: `@IfBuildProfile`
+
+Quarkus cho phép kích hoạt Alternative theo **build profile** mà không cần `@Priority`:
+
+```java
 @Alternative
-@Priority(1) // Priority cao hơn default
+@IfBuildProfile("dev")       // Chỉ active khi chạy profile "dev"
 @ApplicationScoped
 public class MockPaymentService implements PaymentService { ... }
+
+@Alternative
+@IfBuildProfile("prod")
+@ApplicationScoped
+public class RealPaymentService implements PaymentService { ... }
 ```
+
+---
 
 ### Stereotypes
 
-Gom nhóm các annotation lại thành một annotation mới để tái sử dụng.
+#### Vấn đề
+
+Nhiều class cần **cùng tổ hợp annotation** lặp đi lặp lại: `@ApplicationScoped` + `@Transactional` + `@Logged`...
+-> Copy-paste, dễ quên, khó maintain.
+
+#### Cách dùng
 
 ```java
-@Stereotype
-@ApplicationScoped
-@Transactional
+// ===== BƯỚC 1: Tạo Stereotype =====
+@Stereotype                          // Đánh dấu: "Tôi là stereotype"
+@ApplicationScoped                   // Gom scope
+@Transactional                       // Gom transaction
+@Logged                              // Gom interceptor logging
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface Service {
-    // Giờ chỉ cần dùng @Service thay vì viết lại cả 3 dòng
+    // Annotation này = @ApplicationScoped + @Transactional + @Logged
 }
+
+// ===== BƯỚC 2: Sử dụng =====
+// TRƯỚC (verbose):
+@ApplicationScoped
+@Transactional
+@Logged
+public class UserService { ... }
+
+@ApplicationScoped
+@Transactional
+@Logged
+public class OrderService { ... }
+
+// SAU (clean):
+@Service
+public class UserService { ... }
+
+@Service
+public class OrderService { ... }
 ```
+
+#### Khi nào dùng
+
+| Dùng | Không dùng |
+| :--- | :--- |
+| **3+ class** cùng tổ hợp annotation | Chỉ 1-2 class dùng tổ hợp đó (overhead tạo annotation) |
+| Muốn **chuẩn hóa** convention cho team | Tổ hợp annotation thay đổi thường xuyên giữa các class |
+| Thay đổi 1 chỗ -> tất cả class áp dụng | |
+
+---
 
 ### Decorators
 
-Bọc (wrap) một bean để thêm logic business (khác Interceptor là kỹ thuật, Decorator là business).
+#### Vấn đề
+
+Cần **thêm logic business** vào bean có sẵn (logging giá, thêm discount, validate...) mà **không sửa code gốc**.
+
+#### So sánh: Decorator vs Interceptor
+
+| | Decorator | Interceptor |
+| :--- | :--- | :--- |
+| **Loại logic** | **Business** (giảm giá, cache, validate) | **Technical** (logging, timing, security) |
+| **Biết kiểu dữ liệu?** | **Có** (implement cùng interface, thấy method signatures) | **Không** (chỉ thấy `InvocationContext`, generic) |
+| **Truy cập tham số?** | Trực tiếp qua method params | Qua `context.getParameters()` (Object[]) |
+
+#### Cách dùng
 
 ```java
+// ===== Interface gốc =====
+public interface PriceCalculator {
+    double calculate(Product product);
+}
+
+// ===== Bean gốc =====
+@ApplicationScoped
+public class StandardPriceCalculator implements PriceCalculator {
+    @Override
+    public double calculate(Product product) {
+        return product.getBasePrice();  // Giá gốc
+    }
+}
+
+// ===== Decorator 1: Thêm thuế =====
 @Decorator
-@Priority(10)
-public class DiscountDecorator implements PriceCalculator {
+@Priority(10)  // Chạy trước (số nhỏ = ưu tiên cao)
+public class TaxDecorator implements PriceCalculator {
     @Inject
-    @Delegate // Inject instance gốc
+    @Delegate       // Inject bean gốc (hoặc decorator tiếp theo trong chain)
     @Any
     PriceCalculator delegate;
 
-    public double calculate(Product p) {
-        double original = delegate.calculate(p);
-        return original * 0.9; // Giảm giá 10%
+    @Override
+    public double calculate(Product product) {
+        double price = delegate.calculate(product);  // Gọi bean gốc
+        return price * 1.1;                          // Cộng thuế 10%
     }
 }
+
+// ===== Decorator 2: Giảm giá VIP =====
+@Decorator
+@Priority(20)  // Chạy sau TaxDecorator
+public class VipDiscountDecorator implements PriceCalculator {
+    @Inject @Delegate @Any
+    PriceCalculator delegate;
+
+    @Inject
+    SecurityContext securityContext;  // Có thể inject bean khác bình thường
+
+    @Override
+    public double calculate(Product product) {
+        double price = delegate.calculate(product);  // Gọi TaxDecorator
+        if (securityContext.isVip()) {
+            return price * 0.85;  // Giảm 15% cho VIP
+        }
+        return price;
+    }
+}
+
+// ===== Thứ tự thực thi (chain) =====
+// Client gọi calculate()
+//   -> VipDiscountDecorator (Priority 20)
+//     -> TaxDecorator (Priority 10)
+//       -> StandardPriceCalculator (bean gốc)
+//     <- return giá gốc * 1.1
+//   <- return giá sau thuế * 0.85 (nếu VIP)
+// <- return kết quả cuối
 ```
+
+#### Khi nào dùng
+
+| Dùng | Không dùng |
+| :--- | :--- |
+| Thêm **business logic** bọc ngoài (giá, validate, transform) | Logic **kỹ thuật** chung (logging, timing) -> dùng Interceptor |
+| Cần **truy cập typed params** (biết rõ Product, Order...) | Chỉ cần **thay thế hoàn toàn** bean -> dùng Alternative |
+| **Chain** nhiều decorator (giống middleware pipeline) | Logic quá đơn giản (1 dòng if/else) -> sửa thẳng bean gốc |
+| Không muốn **sửa source** bean gốc (bean từ thư viện) | |
+
+#### Lưu ý quan trọng
+
+- Decorator **phải implement** cùng interface với bean gốc.
+- Decorator **không phải** bean bình thường (không có scope annotation).
+- `@Delegate` chỉ có **1 field** trong mỗi decorator.
+- Thứ tự chain: `@Priority` **số lớn chạy trước** (bọc ngoài cùng), số nhỏ chạy sau (gần bean gốc nhất).
 
 ---
 
