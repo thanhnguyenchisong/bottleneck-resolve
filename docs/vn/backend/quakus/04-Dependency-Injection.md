@@ -678,91 +678,354 @@ public class VipDiscountDecorator implements PriceCalculator {
 
 ## Events
 
-### Cơ bản: Sync vs Async
+### Events là gì?
+
+**CDI Events** là cơ chế **Observer Pattern** (Publish-Subscribe) được tích hợp sẵn trong CDI.
+- **Publisher** (Người phát): Gửi sự kiện mà không cần biết ai sẽ nhận.
+- **Observer** (Người nghe): Đăng ký lắng nghe sự kiện mà không cần biết ai gửi.
+- **Decoupling**: Publisher và Observer không biết nhau, không phụ thuộc nhau.
+
+#### Vấn đề Events giải quyết
+
+**Không có Events (Tight Coupling):**
+```java
+@ApplicationScoped
+public class OrderService {
+    @Inject EmailService emailService;      // Phụ thuộc trực tiếp
+    @Inject InventoryService inventoryService;
+    @Inject LoyaltyService loyaltyService;
+    @Inject AnalyticsService analyticsService;
+
+    public void createOrder(Order order) {
+        orderRepo.save(order);
+        
+        // OrderService phải BIẾT tất cả service liên quan
+        emailService.sendConfirmation(order);      // Gửi mail
+        inventoryService.reduceStock(order);       // Giảm kho
+        loyaltyService.addPoints(order);           // Cộng điểm
+        analyticsService.track(order);             // Tracking
+        // Thêm tính năng mới? -> Phải SỬA OrderService
+    }
+}
+```
+
+**Có Events (Loose Coupling):**
+```java
+@ApplicationScoped
+public class OrderService {
+    @Inject Event<OrderCreatedEvent> orderCreated;
+
+    public void createOrder(Order order) {
+        orderRepo.save(order);
+        orderCreated.fire(new OrderCreatedEvent(order));  // Chỉ fire, không cần biết ai nghe
+        // Thêm tính năng mới? -> Tạo Observer mới, KHÔNG SỬA OrderService
+    }
+}
+```
+
+---
+
+### Full Example: Từ Zero đến Master
+
+#### Bước 1: Tạo Event Class
+
+Event là một POJO đơn giản chứa dữ liệu cần truyền.
 
 ```java
-// Publisher
+// Event class - chứa thông tin về sự kiện
+public class OrderCreatedEvent {
+    private final Long orderId;
+    private final String customerEmail;
+    private final BigDecimal totalAmount;
+    private final LocalDateTime createdAt;
+
+    public OrderCreatedEvent(Order order) {
+        this.orderId = order.getId();
+        this.customerEmail = order.getCustomerEmail();
+        this.totalAmount = order.getTotalAmount();
+        this.createdAt = LocalDateTime.now();
+    }
+
+    // Getters
+    public Long getOrderId() { return orderId; }
+    public String getCustomerEmail() { return customerEmail; }
+    public BigDecimal getTotalAmount() { return totalAmount; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+}
+```
+
+#### Bước 2: Publisher - Nơi phát sự kiện
+
+```java
 @ApplicationScoped
 public class OrderService {
     @Inject
-    Event<OrderCreatedEvent> eventPublisher;
+    OrderRepository orderRepo;
 
-    public void createOrder(Order order) {
-        // 1. Synchronous: Blocking, chạy cùng thread, exception làm rollback transaction
-        eventPublisher.fire(new OrderCreatedEvent(order));
+    @Inject
+    Event<OrderCreatedEvent> orderCreatedEvent;  // Inject Event<T>
 
-        // 2. Asynchronous: Non-blocking (trả về CompletionStage), chạy thread khác
-        eventPublisher.fireAsync(new OrderCreatedEvent(order))
-            .exceptionally(e -> {
-                log.error("Async fail", e);
-                return null;
-            });
+    @Transactional
+    public Order createOrder(CreateOrderRequest request) {
+        // 1. Business logic
+        Order order = new Order();
+        order.setCustomerEmail(request.getEmail());
+        order.setTotalAmount(request.getTotal());
+        orderRepo.persist(order);
+
+        // 2. Fire event - thông báo "Đơn hàng đã được tạo"
+        orderCreatedEvent.fire(new OrderCreatedEvent(order));
+
+        return order;
     }
 }
 ```
 
-### Advanced Observers
-
-#### 1. Conditional Observer (`notifyObserver`)
-
-Mặc định, CDI sẽ tạo instance của bean chứa observer nếu nó chưa tồn tại.
-Nếu chỉ muốn nhận event **khi bean ĐÃ tồn tại** (để tránh tạo bean không cần thiết):
+#### Bước 3: Observers - Nơi lắng nghe sự kiện
 
 ```java
+// Observer 1: Gửi Email
 @ApplicationScoped
-public class ChatService {
-    // Chỉ nhận event nếu ChatService đang sống (active)
-    void onUserLogin(@Observes(notifyObserver = Reception.IF_EXISTS) UserLoginEvent e) {
-        refreshChatList(e.getUser());
+public class EmailNotificationService {
+
+    void onOrderCreated(@Observes OrderCreatedEvent event) {
+        // Tự động được gọi khi có OrderCreatedEvent
+        String email = event.getCustomerEmail();
+        sendEmail(email, "Đơn hàng #" + event.getOrderId() + " đã được tạo!");
+    }
+
+    private void sendEmail(String to, String message) {
+        System.out.println("Sending email to " + to + ": " + message);
+    }
+}
+
+// Observer 2: Cập nhật kho
+@ApplicationScoped
+public class InventoryService {
+
+    void onOrderCreated(@Observes OrderCreatedEvent event) {
+        System.out.println("Reducing stock for order #" + event.getOrderId());
+        // Logic giảm số lượng tồn kho
+    }
+}
+
+// Observer 3: Cộng điểm thưởng
+@ApplicationScoped
+public class LoyaltyService {
+
+    void onOrderCreated(@Observes OrderCreatedEvent event) {
+        int points = event.getTotalAmount().intValue() / 1000;  // 1 điểm / 1000đ
+        System.out.println("Adding " + points + " points for order #" + event.getOrderId());
+    }
+}
+
+// Observer 4: Analytics
+@ApplicationScoped
+public class AnalyticsService {
+
+    void onOrderCreated(@Observes OrderCreatedEvent event) {
+        System.out.println("Tracking order #" + event.getOrderId() + " at " + event.getCreatedAt());
     }
 }
 ```
 
-#### 2. Transaction Phase (`during`)
+**Kết quả**: Khi `orderService.createOrder()` được gọi:
+1. Order được lưu vào DB.
+2. Event được fire.
+3. **Tất cả 4 observer tự động chạy** (cùng thread, theo thứ tự không xác định).
 
-Rất quan trọng khi làm việc với Database Transaction. Bạn muốn gửi email **sau khi commit thành công** (để tránh gửi mail nhưng DB lại rollback).
+---
+
+### Synchronous vs Asynchronous Events
+
+#### Sync (`fire`) - Mặc định
+
+```java
+orderCreatedEvent.fire(event);
+```
+
+| Đặc điểm | Giá trị |
+| :--- | :--- |
+| **Thread** | Cùng thread với Publisher |
+| **Blocking** | Có - Publisher chờ tất cả Observer xong |
+| **Transaction** | Chung transaction với Publisher |
+| **Exception** | 1 Observer throw -> Rollback cả transaction |
+
+**Dùng khi**: Logic PHẢI hoàn thành trước khi tiếp tục (VD: giảm kho trước khi trả response).
+
+#### Async (`fireAsync`) - Bất đồng bộ
+
+```java
+orderCreatedEvent.fireAsync(event)
+    .thenAccept(e -> System.out.println("All async observers done"))
+    .exceptionally(e -> {
+        System.out.println("Error: " + e.getMessage());
+        return null;
+    });
+```
+
+```java
+// Observer phải dùng @ObservesAsync
+void onOrderCreatedAsync(@ObservesAsync OrderCreatedEvent event) {
+    // Chạy trên thread khác
+    sendEmailSlow(event);  // Có thể mất 5 giây, không block main thread
+}
+```
+
+| Đặc điểm | Giá trị |
+| :--- | :--- |
+| **Thread** | Thread pool riêng (mặc định: ForkJoinPool) |
+| **Blocking** | Không - Publisher tiếp tục ngay |
+| **Transaction** | KHÔNG chung transaction |
+| **Exception** | Không ảnh hưởng Publisher |
+
+**Dùng khi**: Task nặng/chậm không cần chờ (VD: gửi email, push notification).
+
+---
+
+### Advanced: Transaction Phase
+
+**Vấn đề**: Bạn fire event trong transaction, nhưng transaction có thể **ROLLBACK**.
+-> Nếu đã gửi email rồi mà DB rollback -> Sai logic!
+
+**Giải pháp**: Chờ transaction kết thúc rồi mới xử lý.
 
 ```java
 @ApplicationScoped
 public class EmailService {
-    // Chỉ chạy khi transaction commit THÀNH CÔNG
-    void onOrderSuccess(@Observes(during = TransactionPhase.AFTER_SUCCESS) OrderCreatedEvent e) {
-        sendConfirmationEmail(e.getOrderId());
+
+    // CHỈ gửi email khi DB COMMIT THÀNH CÔNG
+    void sendOnSuccess(@Observes(during = TransactionPhase.AFTER_SUCCESS) OrderCreatedEvent e) {
+        sendConfirmationEmail(e.getCustomerEmail(), e.getOrderId());
     }
 
-    // Chạy khi transaction thất bại (rollback)
-    void onOrderFail(@Observes(during = TransactionPhase.AFTER_FAILURE) OrderCreatedEvent e) {
-        alertAdmin(e.getOrderId());
+    // Gửi cảnh báo nếu transaction THẤT BẠI
+    void alertOnFailure(@Observes(during = TransactionPhase.AFTER_FAILURE) OrderCreatedEvent e) {
+        alertAdmin("Order " + e.getOrderId() + " failed!");
     }
 }
 ```
 
-| Phase | Mô tả |
+| TransactionPhase | Khi nào chạy |
 | :--- | :--- |
-| `IN_PROGRESS` | (Default) Chạy ngay lập tức trong transaction |
-| `AFTER_SUCCESS` | Chạy sau khi commit thành công |
-| `AFTER_FAILURE` | Chạy sau khi rollback |
-| `BEFORE_COMPLETION` | Chạy trước khi commit (có thể set rollbackOnly) |
-| `AFTER_COMPLETION` | Chạy sau khi transaction kết thúc (dù thành công hay thất bại) |
+| `IN_PROGRESS` | (Default) Ngay lập tức, trong transaction |
+| `BEFORE_COMPLETION` | Trước khi commit, có thể gọi `setRollbackOnly()` |
+| `AFTER_SUCCESS` | **Sau khi commit thành công** |
+| `AFTER_FAILURE` | Sau khi rollback |
+| `AFTER_COMPLETION` | Sau khi kết thúc (dù success hay fail) |
 
-#### 3. Ordering (`@Priority`)
+---
 
-Xác định thứ tự chạy của các observer.
+### Advanced: Conditional Observer
 
-```java
-void step1(@Observes @Priority(10) Event e) { ... }
-void step2(@Observes @Priority(20) Event e) { ... }
-```
-
-#### 4. Async Observer
-
-Lưu ý: Async Observer phải đi kèm với `fireAsync()`.
+Mặc định, CDI tạo bean nếu chưa tồn tại để nhận event.
+Nếu chỉ muốn nhận khi bean **ĐÃ TỒN TẠI** (tiết kiệm resource):
 
 ```java
-void onAsync(@ObservesAsync OrderCreatedEvent e) {
-    // Chạy trên thread pool riêng (ForkJoinPool.commonPool() hoặc config)
+void onEvent(@Observes(notifyObserver = Reception.IF_EXISTS) SomeEvent e) {
+    // Chỉ chạy nếu bean này đang active
 }
 ```
+
+---
+
+### Advanced: Ordering với @Priority
+
+Kiểm soát thứ tự chạy của observers (số nhỏ chạy trước).
+
+```java
+// Chạy đầu tiên
+void step1(@Observes @Priority(100) OrderCreatedEvent e) {
+    System.out.println("1. Validate order");
+}
+
+// Chạy thứ hai
+void step2(@Observes @Priority(200) OrderCreatedEvent e) {
+    System.out.println("2. Process payment");
+}
+
+// Chạy cuối cùng
+void step3(@Observes @Priority(300) OrderCreatedEvent e) {
+    System.out.println("3. Send notification");
+}
+```
+
+---
+
+### Advanced: Event Qualifiers
+
+Phân biệt các event cùng type nhưng khác ngữ cảnh.
+
+```java
+// Định nghĩa Qualifier
+@Qualifier
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.FIELD, ElementType.PARAMETER})
+public @interface Premium {}
+
+// Publisher
+@Inject @Premium
+Event<OrderCreatedEvent> premiumOrderEvent;
+
+premiumOrderEvent.fire(event);  // Fire với qualifier
+
+// Observer
+void onPremiumOrder(@Observes @Premium OrderCreatedEvent e) {
+    // Chỉ nhận event có @Premium
+    sendVIPGift(e.getOrderId());
+}
+```
+
+---
+
+### Khi nào NÊN dùng Events?
+
+#### 1. Decoupling (Giảm phụ thuộc)
+Khi bạn muốn Module A thông báo cái gì đó đã xảy ra, nhưng **không cần biết** (và không nên biết) ai sẽ xử lý nó.
+- **Ví dụ**: `OrderService` (A) tạo đơn hàng xong. `InventoryService` (B), `EmailService` (C), `AnalyticsService` (D) cần biết để làm việc riêng của họ.
+- **Lợi ích**: A không phụ thuộc vào B, C, D. Khi thêm E, không cần sửa A.
+
+#### 2. Side Effects (Tác vụ phụ)
+Các tác vụ không ảnh hưởng trực tiếp đến luồng chính (Main Flow).
+- **Ví dụ**: Gửi email, ghi log audit, bắn metrics, push notification.
+- **Lợi ích**: Tách biệt logic chính và phụ, code gọn hơn.
+
+#### 3. Asynchronous Processing (Xử lý bất đồng bộ)
+Muốn thực hiện task nặng mà không block user.
+- **Ví dụ**: Tạo report PDF, gửi email qua network chậm, gọi API bên thứ 3.
+- **Lợi ích**: User nhận phản hồi ngay, task chạy ngầm.
+
+#### 4. Extension Points (Điểm mở rộng)
+Thiết kế hệ thống dạng Plugin, cho phép module khác "hook" vào quy trình.
+- **Ví dụ**: CMS cho phép plugin lắng nghe sự kiện `PostPublishedEvent` để SEO, auto-share lên Facebook.
+
+---
+
+### Khi nào KHÔNG nên dùng Events?
+
+#### 1. Core Business Flow (Luồng nghiệp vụ chính)
+Khi các bước phụ thuộc chặt chẽ vào nhau và cần rõ ràng về thứ tự.
+- **Ví dụ**: `Validate Order` -> `Payment` -> `Save DB`.
+- **Tại sao**: Dùng Event ở đây làm code trở nên "Magic", khó debug (không biết flow chạy đi đâu), khó control thứ tự và error handling. -> **Nên gọi method trực tiếp**.
+
+#### 2. Cần Return Value (Giá trị trả về)
+Observer pattern là "fire and forget" (bắn và quên).
+- **Ví dụ**: Gọi `calculateTax(order)` và cần nhận về số tiền thuế để tính tổng.
+- **Tại sao**: Event không thiết kế để trả về dữ liệu. (Dù có thể dùng object mutable trong event để hứng dữ liệu, nhưng đó là anti-pattern). -> **Nên gọi method trực tiếp**.
+
+#### 3. Communication trong cùng Module nhỏ
+Khi class A và class B nằm cạnh nhau, cùng package, cùng nghiệp vụ.
+- **Tại sao**: Over-engineering. Gọi hàm trực tiếp đơn giản và dễ hiểu hơn.
+
+---
+
+### Pitfalls (Lỗi thường gặp)
+
+1. **Quên `@ObservesAsync`**: Fire async nhưng observer dùng `@Observes` -> Không nhận được.
+2. **Exception trong Sync Observer**: 1 observer throw -> Cả transaction rollback, các observer khác không chạy.
+3. **Circular Events**: A fire event -> B observe -> B fire event -> A observe -> Loop vô hạn.
+4. **Heavy logic trong Sync**: Block main thread, response chậm -> Chuyển sang Async.
+5. **Async mà cần Transaction**: Async observer KHÔNG có transaction context của publisher -> Tự quản lý transaction nếu cần.
 
 ---
 
