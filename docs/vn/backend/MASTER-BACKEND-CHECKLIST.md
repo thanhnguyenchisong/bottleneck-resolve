@@ -1,6 +1,6 @@
 # Checklist Master Backend — Tự tin pass phỏng vấn Master Backend
 
-Sau khi **học thuộc hết** nội dung trong toàn bộ folder backend (Java, JPA, Spring, DB, Kafka, RabbitMQ, Microservices, SSO, Maven, PostgreSQL, Relational DB, Quarkus), dùng checklist này để **tự kiểm tra**. Trả lời rõ ràng hầu hết các mục = **hoàn toàn tự tin pass phỏng vấn master backend**.
+Sau khi **học thuộc hết** nội dung trong toàn bộ folder backend (Java, JPA, Spring, DB, Kafka, RabbitMQ, Redis, MongoDB, SQL, JFrog, Harbor, Microservices, SSO, Maven, PostgreSQL, Relational DB, Quarkus), dùng checklist này để **tự kiểm tra**. Trả lời rõ ràng hầu hết các mục = **hoàn toàn tự tin pass phỏng vấn master backend**.
 
 ---
 
@@ -19,6 +19,11 @@ Sau khi **học thuộc hết** nội dung trong toàn bộ folder backend (Java
 | **sso** | SSO, SAML, OAuth2, OIDC, JWT, Security | Auth/AuthZ |
 | **maven** | POM, lifecycle, dependencies, multi-module | Build, dependency |
 | **quakus** | Quarkus: REST, DI, reactive, native image | Alternative stack |
+| **redis** | Redis: data structures, persistence, cache patterns, Spring Data Redis, Cluster, Sentinel | Cache, session, rate limit, real-time |
+| **mongodb** | MongoDB: document model, queries, index, aggregation, Spring Data, replica set, sharding | NoSQL, document DB |
+| **sql** | SQL: DDL/DML, SELECT, JOIN, subquery, CTE, aggregation, optimization, index | Truy vấn SQL, tối ưu |
+| **jfrog** | JFrog Artifactory: artifact repository, local/remote/virtual repo, Maven/npm/Docker, CI/CD, Xray | Build artifact, CI/CD |
+| **harbor** | Harbor: container registry, project, replication, scan CVE, RBAC, CI/CD | Container image, DevOps |
 
 ---
 
@@ -104,6 +109,52 @@ Sau khi **học thuộc hết** nội dung trong toàn bộ folder backend (Java
 - [ ] **Dead letter queue (DLQ)** — xử lý message lỗi.
 - [ ] **Idempotent consumer** — tránh xử lý trùng khi retry.
 
+### Redis & Caching
+
+- [ ] **Redis vs Memcached vs DB** — in-memory, data structures, persistence, use case (cache, session, ranking).
+- [ ] **Redis data structures**: String, Hash, List, Set, Sorted Set — khi nào dùng (cache object, queue, leaderboard, unique set).
+- [ ] **RDB vs AOF** — snapshot vs append-only; durability, restore; có thể dùng cả hai.
+- [ ] **Cache-aside**: read through cache, miss thì DB rồi set cache; write thì invalidate cache.
+- [ ] **Cache invalidation** — khi nào xóa vs cập nhật cache; TTL.
+- [ ] **Thundering herd / cache stampede** — nhiều request cùng load DB khi key hết hạn; giảm bằng lock, TTL jitter, early refresh.
+- [ ] **Spring Data Redis**: RedisTemplate vs StringRedisTemplate; Spring Cache với Redis (serializer, TTL).
+- [ ] **Redis Cluster**: hash slot (16384), sharding; hash tag để multi-key cùng slot.
+- [ ] **Redis Sentinel**: HA cho single master; auto failover; khi nào dùng Cluster vs Sentinel.
+
+### MongoDB & NoSQL
+
+- [ ] **MongoDB vs SQL** — document model, schema flexible, khi nào dùng NoSQL.
+- [ ] **Embedding vs reference** — thiết kế schema document; khi nào embed, khi nào reference.
+- [ ] **Index**: single, compound, multikey; left-prefix; explain.
+- [ ] **Aggregation pipeline**: $match, $group, $lookup; thứ tự stage.
+- [ ] **Replica set**: primary, secondary; read preference.
+- [ ] **Sharding**: shard key, chunk; hashed vs range.
+
+### SQL (truy vấn & tối ưu)
+
+- [ ] **JOIN**: INNER, LEFT, khi nào dùng; self-join.
+- [ ] **Subquery vs CTE vs JOIN** — khi nào dùng.
+- [ ] **GROUP BY, HAVING**; hàm tập hợp (COUNT, SUM, AVG).
+- [ ] **Window function**: ROW_NUMBER, RANK, PARTITION BY.
+- [ ] **EXPLAIN**, execution plan; index khi nào dùng; covering index.
+- [ ] **Phân trang**: tránh OFFSET lớn; cursor-based.
+
+### JFrog & Artifactory
+
+- [ ] **Artifact repository** — vai trò (storage, proxy, single source of truth).
+- [ ] **Local vs remote vs virtual** repository.
+- [ ] **Maven/npm/Docker** với Artifactory: resolution, deploy (push).
+- [ ] **CI/CD**: build → push artifact → deploy từ Artifactory.
+- [ ] **Xray**: scan CVE, license; retention policy.
+
+### Harbor (Container Registry)
+
+- [ ] **Harbor vs Docker Registry** — UI, scan, replication, RBAC.
+- [ ] **Project, repository, tag**; push/pull với Harbor.
+- [ ] **Replication**: pull từ Docker Hub, push sang Harbor khác.
+- [ ] **Vulnerability scanning**, image signing (Notary); RBAC.
+- [ ] **Kubernetes**: imagePullSecrets; CI push image lên Harbor.
+
 ### Security & SSO
 
 - [ ] **Authentication vs Authorization**.
@@ -138,7 +189,7 @@ Sau khi **học thuộc hết** nội dung trong toàn bộ folder backend (Java
 
 ## 4. Cách dùng checklist
 
-1. **Học đủ** toàn bộ tài liệu trong từng folder (java, jpa, spring-jpa, relational-database, postgresSQL, kafka, rabbitMQ, microservices, sso, maven, quakus).
+1. **Học đủ** toàn bộ tài liệu trong từng folder (java, jpa, spring-jpa, relational-database, postgresSQL, sql, kafka, rabbitMQ, redis, mongodb, jfrog, harbor, microservices, sso, maven, quakus).
 2. **Tự hỏi từng mục** trong checklist; nếu chưa trả lời được thì quay lại bài tương ứng (xem bảng mục 1).
 3. **Thực hành**: viết code (Spring Boot, JPA, REST, Kafka consumer/producer), thiết kế schema, vẽ kiến trúc microservices.
 4. **Ôn System Design**: đọc thêm sách/blog (Designing Data-Intensive Applications, system design interview) để bổ sung mục 2 “System Design & Scalability”.
@@ -147,6 +198,6 @@ Sau khi **học thuộc hết** nội dung trong toàn bộ folder backend (Java
 
 ## 5. Kết luận
 
-**Học thuộc hết** nội dung backend trong folder + **trả lời được rõ ràng** đa số câu trong checklist trên = bạn có đủ nền **master backend** để **tự tin pass phỏng vấn master backend**. Các chủ đề Java, JVM, Concurrency, Spring, JPA, DB, REST, Microservices, Kafka, Security, và System Design cơ bản đều được phủ bởi tài liệu hiện có; checklist giúp bạn không bỏ sót và biết cách “nối” từng chủ đề khi trả lời phỏng vấn.
+**Học thuộc hết** nội dung backend trong folder + **trả lời được rõ ràng** đa số câu trong checklist trên = bạn có đủ nền **master backend** để **tự tin pass phỏng vấn master backend**. Các chủ đề Java, JVM, Concurrency, Spring, JPA, DB, SQL, Redis, MongoDB, JFrog, Harbor, Microservices, Kafka, Security, và System Design cơ bản đều được phủ bởi tài liệu hiện có; checklist giúp bạn không bỏ sót và biết cách “nối” từng chủ đề khi trả lời phỏng vấn.
 
 → Quay lại [README](./README.md) để xem lộ trình và mục lục từng folder.
