@@ -111,14 +111,44 @@ public class HelperService {
 
 ### Normal Scope vs Pseudo Scope (Client Proxy)
 
-- **Normal Scope** (@ApplicationScoped, @RequestScoped):
-  - Inject một **Client Proxy** (obj giả), không phải instance thật.
-  - Proxy delegating method call tới instance thật active trong context hiện tại.
-  - Cho phép inject bean scope ngắn (Request) vào bean scope dài (Application) mà không lỗi.
+#### Bảng so sánh
 
-- **Pseudo Scope** (@Dependent, @Singleton):
-  - Inject **Direct Reference** (instance thật).
-  - Performance tốt hơn chút do không qua proxy, nhưng cẩn thận memory leak nếu inject Dependent vào ApplicationScoped (Dependent bean sẽ sống mãi cùng Application bean).
+| Đặc điểm | Normal Scope | Pseudo Scope |
+| :--- | :--- | :--- |
+| **Annotations** | `@ApplicationScoped`, `@RequestScoped`, `@SessionScoped` | `@Dependent` (default), `@Singleton` |
+| **Cơ chế Inject** | **Client Proxy** (Vỏ bọc) | **Direct Reference** (Instance thật) |
+| **Lifecycle** | Có điểm bắt đầu/kết thúc rõ ràng do Context quản lý. | Phụ thuộc vào bean chứa nó (`@Dependent`) hoặc sống mãi (`@Singleton`). |
+| **Lazy Init** | **Có**. Bean thật chỉ được tạo khi gọi hàm đầu tiên. | **Không**. Tạo ngay khi được inject. |
+
+#### Client Proxy là gì?
+
+**Client Proxy** là một object giả mà CDI inject vào thay vì object thật.
+- **Giải quyết Scope Mismatch**: Khi inject bean scope ngắn (Request) vào bean scope dài (Application), Proxy đảm bảo gọi đúng instance của request hiện tại.
+- **Lazy Initialization**: Tăng tốc startup vì chưa cần tạo instance thật ngay.
+- **Circular Dependency**: Giúp phá vỡ vòng lặp dependency trong một số trường hợp.
+
+#### Khi nào dùng cái nào?
+
+1. **@ApplicationScoped** (Normal):
+   - **Dùng cho**: Service, Repository, Component stateless hoặc shared state.
+   - **Lợi ích**: Tiết kiệm RAM (1 instance), Lazy Init, Thread-safe.
+
+2. **@RequestScoped** (Normal):
+   - **Dùng cho**: User context, Transaction info, Request logging.
+   - **Lợi ích**: Cô lập dữ liệu giữa các request.
+
+3. **@Dependent** (Pseudo - Default):
+   - **Dùng cho**: Helper object, object dùng 1 lần, hoặc cần nhiều instance riêng biệt cho từng cha.
+   - **Cảnh báo**: Nếu inject vào `@ApplicationScoped`, bean Dependent sẽ **sống mãi** (Memory Leak tiềm ẩn).
+
+4. **@Singleton** (Pseudo):
+   - **Dùng cho**: Utility đơn giản không cần Proxy.
+   - **Lưu ý**: Không Lazy Init, startup chậm hơn nếu init nặng. Ưu tiên `@ApplicationScoped` trong Quarkus.
+
+#### Vấn đề thường gặp (Pitfalls)
+
+- **Gọi field trực tiếp**: `proxy.field` có thể null hoặc sai giá trị (vì không qua method delegate). -> **Luôn dùng Getter/Setter**.
+- **Private Methods**: Proxy chuẩn không gọi được private method (Quarkus fix được bằng bytecode transformation nhưng nên hạn chế).
 
 ---
 
