@@ -29,15 +29,15 @@ Dùng service + BehaviorSubject/signal để lưu và phát state.
 ```typescript
 @Injectable({ providedIn: 'root' })
 export class CartService {
-  private items = signal<CartItem[]>([]);
-  readonly items = this.items.asReadonly();
+  private _items = signal<CartItem[]>([]);
+  readonly items = this._items.asReadonly();
 
   add(item: CartItem) {
-    this.items.update(list => [...list, item]);
+    this._items.update(list => [...list, item]);
   }
 
   remove(id: number) {
-    this.items.update(list => list.filter(i => i.id !== id));
+    this._items.update(list => list.filter(i => i.id !== id));
   }
 }
 ```

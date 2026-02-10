@@ -160,26 +160,36 @@ Sau khi học xong 01–16 (gồm AG-Grid), bạn nên trả lời rõ ràng cá
 - [ ] **takeUntilDestroyed** vs **async** pipe — tránh memory leak thế nào?
 - [ ] Khi nào dùng **NgRx** thay vì **service + signal**?
 
-### UI & Data grid
+### UI, Animations & Data grid
 
-- [ ] **AG-Grid** vs Material Table: Khi nào chọn AG-Grid? (data lớn, sort/filter/virtual scroll, export) — xem [16 - AG-Grid](../16-ag-grid.md).
+- [ ] **Angular Animations**: trigger, state, transition, animate — dùng `:enter`/`:leave`, route animation? Khi nào dùng CSS animation thay vì Angular animation?
+- [ ] **Angular CDK**: DragDrop, VirtualScroll, Overlay, A11y — khi nào dùng CDK thay vì viết tay?
+- [ ] **AG-Grid** vs Material Table: Khi nào chọn AG-Grid? (data lớn, sort/filter/virtual scroll, export) — xem [16 - AG-Grid](16-ag-grid.md).
 - [ ] Tích hợp **AG-Grid** với Angular: rowData/columnDefs binding, OnPush, Server-Side Row Model khi nào?
 
-### Performance & Build
+### Performance, Build & i18n
 
 - [ ] Cách **giảm bundle size**? Lazy load, tree-shake, phân tích bundle?
 - [ ] **AOT** vs **JIT**? Production dùng gì?
 - [ ] **SSR** (Angular Universal): Lợi ích, điểm khác so với SPA khi deploy?
 - [ ] **trackBy** với *ngFor/@for — tại sao quan trọng?
+- [ ] **i18n**: Built-in (compile-time) vs runtime (ngx-translate/Transloco)? Khi nào chọn cái nào?
 
 ### Security & Testing
 
 - [ ] **XSS** trong Angular: Cơ chế escape, rủi ro khi dùng innerHTML?
+- [ ] **Global ErrorHandler**: Override ErrorHandler để log lỗi chưa xử lý lên monitoring service?
 - [ ] Test **component** có **OnPush**: Cần gì đặc biệt? **HttpTestingController** dùng thế nào?
 - [ ] **E2E** với Cypress/Playwright: Nên test những luồng nào?
 
+### RxJS nâng cao
+
+- [ ] **combineLatest** vs **forkJoin** vs **withLatestFrom** — khi nào dùng?
+- [ ] **shareReplay**: Cache Observable, `refCount` là gì?
+- [ ] **toSignal / toObservable**: Bridge giữa signal và Observable?
+
 ---
 
-Nếu bạn trả lời được hầu hết các mục trên và áp dụng được vào thiết kế/implement một ứng dụng Angular lớn (routing, form, HTTP, state, **AG-Grid**, lazy load, OnPush, test), bạn đạt mức **senior / master Angular web builder**. Ôn lại các bài tương ứng (02, 03, 05, 06, 07, 08, 09, 10, 12, 13, 14, **16**) cho từng chủ đề.
+Nếu bạn trả lời được hầu hết các mục trên và áp dụng được vào thiết kế/implement một ứng dụng Angular lớn (routing, form, HTTP, state, **AG-Grid**, animations, i18n, lazy load, OnPush, test), bạn đạt mức **senior / master Angular web builder**. Ôn lại các bài tương ứng (02, 03, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, **16**) cho từng chủ đề.
 
-→ Quay lại [README](../README.md) | [10 - State](10-state-architecture.md) | [14 - NgRx](14-ngrx.md) | [16 - AG-Grid](../16-ag-grid.md)
+→ Quay lại [README](../README.md) | [10 - State](10-state-architecture.md) | [14 - NgRx](14-ngrx.md) | [16 - AG-Grid](16-ag-grid.md)

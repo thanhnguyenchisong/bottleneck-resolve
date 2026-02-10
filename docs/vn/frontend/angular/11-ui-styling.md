@@ -5,9 +5,10 @@
 ## Mục lục
 1. [Component styles và SCSS](#component-styles-và-scss)
 2. [Angular Material](#angular-material)
-3. [Theming và responsive](#theming-và-responsive)
-4. [Best practices](#best-practices)
-5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+3. [Angular Animations](#angular-animations)
+4. [Theming và responsive](#theming-và-responsive)
+5. [Best practices](#best-practices)
+6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
 
@@ -78,6 +79,70 @@ import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 
 ---
 
+## Angular Animations
+
+Angular có module animation riêng (`@angular/animations`) cho phép khai báo animation **trong metadata component**, gắn với state/trigger, tích hợp với route transition.
+
+**Cài đặt** (standalone):
+
+```typescript
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+
+bootstrapApplication(AppComponent, {
+  providers: [provideAnimationsAsync()],
+});
+```
+
+**Ví dụ: fade in/out khi ẩn hiện element**
+
+```typescript
+import { trigger, transition, style, animate } from '@angular/animations';
+
+@Component({
+  animations: [
+    trigger('fadeInOut', [
+      transition(':enter', [
+        style({ opacity: 0 }),
+        animate('300ms ease-in', style({ opacity: 1 })),
+      ]),
+      transition(':leave', [
+        animate('300ms ease-out', style({ opacity: 0 })),
+      ]),
+    ]),
+  ],
+  template: `
+    @if (visible) {
+      <div @fadeInOut>Nội dung hiển thị mượt mà</div>
+    }
+  `,
+})
+```
+
+**Các khái niệm chính:**
+
+| Khái niệm | Mô tả |
+|------------|--------|
+| `trigger` | Tên animation, gắn vào template bằng `@triggerName` |
+| `state` | Định nghĩa style cho một trạng thái (ví dụ `open`, `closed`) |
+| `transition` | Chuyển đổi giữa các state (`:enter`, `:leave`, `open => closed`) |
+| `animate` | Thời gian và easing (`'300ms ease-in'`) |
+| `style` | CSS properties áp dụng |
+| `query` / `stagger` | Animation cho danh sách (stagger = hiệu ứng lần lượt từng item) |
+
+**Route animation**: Dùng `trigger` trên `<router-outlet>` kết hợp `route.data` để tạo hiệu ứng chuyển trang (slide, fade).
+
+```typescript
+trigger('routeAnimation', [
+  transition('* <=> *', [
+    query(':enter', [style({ opacity: 0 })], { optional: true }),
+    query(':leave', [animate('200ms', style({ opacity: 0 }))], { optional: true }),
+    query(':enter', [animate('300ms', style({ opacity: 1 }))], { optional: true }),
+  ]),
+])
+```
+
+---
+
 ## Theming và responsive
 
 - **Material Theming**: Dùng Sass variables và mixins (`@include angular-material-theme($theme)`); tạo theme sáng/tối bằng cách đổi palette.
@@ -116,7 +181,16 @@ Mặc định encapsulation Emulated: style component chỉ ảnh hưởng view 
 Material: tạo 2 theme (light/dark), đổi class trên body hoặc dùng `@media (prefers-color-scheme)`. Hoặc dùng CSS variables và đổi giá trị theo class.
 
 **Bảng dữ liệu lớn (sort, filter, virtual scroll)?**  
-Dùng **AG-Grid**: [16 - AG-Grid](../16-ag-grid.md). Material Table đủ cho list đơn giản; AG-Grid cho màn admin/report.
+Dùng **AG-Grid**: [16 - AG-Grid](16-ag-grid.md). Material Table đủ cho list đơn giản; AG-Grid cho màn admin/report.
+
+---
+
+## Senior / Master
+
+- **Angular CDK (Component Dev Kit)**: Bộ primitive không gắn với Material Design: `DragDropModule` (kéo thả), `ScrollingModule` (virtual scroll cho list lớn), `OverlayModule` (popup, tooltip, dialog tùy chỉnh), `A11yModule` (focus trap, live announcer). Dùng CDK khi cần behavior nhưng không muốn style Material.
+- **Animation performance**: Dùng `transform` và `opacity` thay vì `width`/`height`/`top`/`left` để animation chạy trên GPU (composite layer). Tránh animation trên list lớn không có stagger/limit.
+- **CSS containment**: `contain: content` hoặc `contain: layout` trên component host để browser giới hạn repaint/reflow scope.
+- **Design system**: Với app lớn, xây dựng shared component library (button, input, card, modal) với consistent API (Input/Output), theme variables, và Storybook để document UI.
 
 ---
 

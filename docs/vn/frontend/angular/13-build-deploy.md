@@ -6,8 +6,9 @@ Bài này tóm tắt môi trường (environments), lệnh build, SSR (Server-Si
 1. [Environments](#environments)
 2. [Build](#build)
 3. [SSR và SSG](#ssr-và-ssg)
-4. [Deploy](#deploy)
-5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+4. [i18n — Đa ngôn ngữ](#i18n--đa-ngôn-ngữ)
+5. [Deploy](#deploy)
+6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
 
@@ -62,6 +63,64 @@ ng add @angular/ssr
 ```
 
 Sẽ cấu hình server entry, `server.ts`, và script build. Deploy cần chạy Node server (hoặc platform hỗ trợ Node).
+
+---
+
+## i18n — Đa ngôn ngữ
+
+Angular có hệ thống **i18n** tích hợp để hỗ trợ nhiều ngôn ngữ. Có hai hướng chính:
+
+### Cách 1: Angular built-in i18n (compile-time)
+
+Đánh dấu text trong template bằng attribute `i18n`:
+
+```html
+<h1 i18n="@@pageTitle">Trang chủ</h1>
+<p i18n="@@welcomeMsg">Chào mừng bạn đến với ứng dụng</p>
+```
+
+Trích xuất file translation:
+
+```bash
+ng extract-i18n --output-path src/locale
+```
+
+Tạo file `messages.en.xlf` (hoặc JSON) cho từng ngôn ngữ. Cấu hình trong `angular.json`:
+
+```json
+"i18n": {
+  "sourceLocale": "vi",
+  "locales": {
+    "en": "src/locale/messages.en.xlf"
+  }
+}
+```
+
+Build cho từng locale: `ng build --localize` — tạo **nhiều bản build**, mỗi bản một ngôn ngữ. Deploy từng bản theo subdomain hoặc path (`/en/`, `/vi/`).
+
+- **Ưu**: Tối ưu, text được compile vào bundle, không runtime overhead.
+- **Nhược**: Mỗi ngôn ngữ là một build riêng; không đổi ngôn ngữ runtime (phải reload).
+
+### Cách 2: Runtime i18n (ngx-translate / Transloco)
+
+Thư viện phổ biến: **@ngx-translate/core** hoặc **@jsverse/transloco** — load file JSON translation lúc runtime, đổi ngôn ngữ không cần reload.
+
+```typescript
+// Với Transloco
+import { TranslocoModule } from '@jsverse/transloco';
+
+// Template
+<h1>{{ 'pageTitle' | transloco }}</h1>
+```
+
+- **Ưu**: Đổi ngôn ngữ runtime, một bản build cho mọi locale.
+- **Nhược**: File translation load qua HTTP (thêm request), text không được compile-time check.
+
+### Khi nào chọn gì?
+
+- **Ít ngôn ngữ, SEO quan trọng**: Built-in i18n (compile-time).
+- **Đổi ngôn ngữ runtime, SPA không cần SEO**: ngx-translate hoặc Transloco.
+- **Số, ngày, tiền tệ**: Dùng Angular pipe (`date`, `number`, `currency`) với `LOCALE_ID` — tự format theo locale.
 
 ---
 

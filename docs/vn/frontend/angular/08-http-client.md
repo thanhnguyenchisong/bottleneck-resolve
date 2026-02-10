@@ -182,4 +182,32 @@ Có. Trước khi component destroy nên unsubscribe để tránh memory leak. C
 
 ---
 
+## Senior / Master
+
+- **Global ErrorHandler**: Angular cung cấp class `ErrorHandler` để bắt mọi error chưa được xử lý (throw trong component, service, v.v.). Override để log lên server (Sentry, Datadog) hoặc hiển thị thông báo toàn cục:
+
+```typescript
+import { ErrorHandler, Injectable } from '@angular/core';
+
+@Injectable()
+export class GlobalErrorHandler implements ErrorHandler {
+  handleError(error: any): void {
+    console.error('Unhandled error:', error);
+    // Gửi lên monitoring service (Sentry, Datadog, ...)
+    // this.monitoringService.logError(error);
+  }
+}
+
+// Đăng ký trong app.config.ts
+providers: [
+  { provide: ErrorHandler, useClass: GlobalErrorHandler },
+],
+```
+
+- **Retry strategy**: Dùng `retry({ count: 3, delay: 1000 })` (RxJS 7+) hoặc custom `retryWhen` với exponential backoff cho API không ổn định.
+- **Request cancellation**: Unsubscribe Observable HTTP sẽ **abort** request (XHR hoặc fetch). Kết hợp `switchMap` (search) hoặc `takeUntilDestroyed` (component destroy) để tự hủy request không cần nữa.
+- **Typed interceptor vs functional**: Angular 15+ khuyến nghị **functional interceptor** (`HttpInterceptorFn`); class-based (`HttpInterceptor`) vẫn dùng được nhưng không phải mặc định cho standalone.
+
+---
+
 → Tiếp theo: [09 - RxJS trong Angular](09-rxjs-angular.md)

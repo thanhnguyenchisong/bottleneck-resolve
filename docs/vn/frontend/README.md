@@ -8,21 +8,21 @@ Bộ tài liệu này bao gồm **Angular** và các thành phần xung quanh c�
 
 | # | File | Nội dung |
 |---|------|----------|
-| 01 | [TypeScript cơ bản](./01-typescript-basics.md) | TypeScript cho Angular: types, class, interface, decorators, module |
-| 02 | [Angular căn bản](./02-angular-fundamentals.md) | Angular là gì, CLI, cấu trúc project, lifecycle |
-| 03 | [Components & Templates](./03-components-templates.md) | Component, template, data binding, input/output, ViewChild |
-| 04 | [Directives & Pipes](./04-directives-pipes.md) | Structural/attribute directives, built-in & custom pipes |
-| 05 | [Services & Dependency Injection](./05-services-di.md) | Service, DI, inject(), providedIn, singleton |
-| 06 | [Routing & Navigation](./06-routing-navigation.md) | Router, lazy loading, guards, resolvers |
-| 07 | [Forms](./07-forms.md) | Template-driven forms, Reactive Forms, validation |
-| 08 | [HTTP Client](./08-http-client.md) | HttpClient, interceptors, error handling |
-| 09 | [RxJS trong Angular](./09-rxjs-angular.md) | Observable, operators, async pipe, Subject |
-| 10 | [State & Kiến trúc](./10-state-architecture.md) | Quản lý state, service-based, khi nào dùng NgRx |
-| 11 | [UI & Styling](./11-ui-styling.md) | Angular Material, SCSS, theming, responsive |
-| 12 | [Testing](./12-testing.md) | Unit test (Jasmine/Karma), e2e (Cypress/Playwright) |
-| 13 | [Build & Deploy](./13-build-deploy.md) | Environments, build, SSR, deploy (static, Docker) |
-| 14 | [**NgRx**](./14-ngrx.md) | Store, Actions, Reducers, Effects, Selectors, feature state |
-| 15 | [**Master Angular**](./15-master-angular.md) | Change Detection, Signals, Performance, Security, Kiến trúc, **Checklist phỏng vấn Senior** |
+| 01 | [TypeScript cơ bản](angular/01-typescript-basics.md) | TypeScript cho Angular: types, class, interface, decorators, module |
+| 02 | [Angular căn bản](angular/02-angular-fundamentals.md) | Angular là gì, CLI, cấu trúc project, lifecycle |
+| 03 | [Components & Templates](angular/03-components-templates.md) | Component, template, data binding, input/output, ViewChild |
+| 04 | [Directives & Pipes](angular/04-directives-pipes.md) | Structural/attribute directives, built-in & custom pipes |
+| 05 | [Services & Dependency Injection](angular/05-services-di.md) | Service, DI, inject(), providedIn, singleton |
+| 06 | [Routing & Navigation](angular/06-routing-navigation.md) | Router, lazy loading, guards, resolvers |
+| 07 | [Forms](angular/07-forms.md) | Template-driven forms, Reactive Forms, validation |
+| 08 | [HTTP Client](angular/08-http-client.md) | HttpClient, interceptors, error handling, global ErrorHandler |
+| 09 | [RxJS trong Angular](angular/09-rxjs-angular.md) | Observable, operators, async pipe, Subject, combineLatest, forkJoin |
+| 10 | [State & Kiến trúc](angular/10-state-architecture.md) | Quản lý state, service-based, khi nào dùng NgRx |
+| 11 | [UI & Styling](angular/11-ui-styling.md) | Angular Material, SCSS, theming, responsive, animations |
+| 12 | [Testing](angular/12-testing.md) | Unit test (Jasmine/Karma), e2e (Cypress/Playwright) |
+| 13 | [Build & Deploy](angular/13-build-deploy.md) | Environments, build, SSR, i18n, deploy (static, Docker) |
+| 14 | [**NgRx**](angular/14-ngrx.md) | Store, Actions, Reducers, Effects, Selectors, feature state |
+| 15 | [**Master Angular**](angular/15-master-angular.md) | Change Detection, Signals, Performance, Security, Kiến trúc, **Checklist phỏng vấn Senior** |
 | 16 | [**AG-Grid**](angular/16-ag-grid.md) | Data grid: columnDefs, sort/filter, virtual scroll, cell editor/renderer, tích hợp Angular |
 
 ## 🎯 Lộ trình học
