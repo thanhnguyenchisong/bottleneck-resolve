@@ -24,6 +24,9 @@ docs/vn/
 │   ├── rabbitMQ/
 │   ├── microservices/
 │   ├── quakus/        ← Quarkus
+│   ├── nodejs/        ← Node.js (từ zero đến master, 17 bài)
+│   ├── nestjs/        ← NestJS (enterprise framework, 11 bài)
+│   ├── prisma/        ← Prisma (ORM hiện đại, 7 bài)
 │   ├── maven/
 │   ├── postgresSQL/
 │   └── sso/
@@ -87,6 +90,9 @@ Tài liệu luyện phỏng vấn và tham khảo cho lập trình backend: Java
 | [**backend/microservices**](./backend/microservices/) | Microservices: communication, discovery, gateway, patterns |
 | [**backend/quakus**](./backend/quakus/) | Quarkus: REST, DI, reactive, native image |
 | [**backend/maven**](./backend/maven/) | Maven: POM, lifecycle, dependencies, multi-module |
+| [**backend/nodejs**](./backend/nodejs/) | **Node.js**: 17 bài từ zero đến master (Express, JWT, DB, Testing, WebSocket, GraphQL, Swagger) |
+| [**backend/nestjs**](./backend/nestjs/) | **NestJS**: 11 bài — enterprise framework (Modules, DI, Prisma, TypeORM, Auth, GraphQL, WebSocket, Microservices, Swagger) |
+| [**backend/prisma**](./backend/prisma/) | **Prisma**: 7 bài — ORM hiện đại (Schema, Relations, CRUD, Migrations, Advanced, Performance) |
 | [**backend/sso**](./backend/sso/) | SSO: SAML, OAuth2, OIDC, JWT |
 
 → Xem [backend/README.md](./backend/README.md) để có mục lục chi tiết và lộ trình đọc.
@@ -109,6 +115,19 @@ Tài liệu CI/CD, container, Kubernetes, IaC và điều tra hiệu suất.
 | [**devops/bottleneck-resolve**](./devops/bottleneck-resolve/) | **Demo app**: JMeter, Async Profiler, Prometheus/Grafana, hướng dẫn tìm điểm nghẽn |
 
 → Mỗi folder có `README.md` với thứ tự đọc và mô tả ngắn.
+
+---
+
+## 📁 Project minh họa (example)
+
+Mỗi phần tài liệu có thư mục **`example/`** chứa project **hoàn chỉnh, chạy được** để test và học:
+
+- **frontend/web/example** — Trang tĩnh HTML/CSS/JS (Flexbox, Grid, Responsive, A11y)
+- **frontend/angular/example** — Ứng dụng Angular (TypeScript, Routing, Forms, NgRx)
+- **backend/…/example** — Theo từng topic: Java, JPA, Spring JPA, Maven, Kafka, RabbitMQ, Redis, Quarkus, PostgreSQL, Microservices, …
+- **devops/…/example** — Git repo mẫu, GitLab/Jenkins pipeline, K8s manifest, Helm chart, Terraform, bottleneck-resolve
+
+Vào từng `example/` và đọc **README.md** trong đó để biết cách chạy.
 
 ---
 

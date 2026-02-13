@@ -64,3 +64,10 @@ Bộ tài liệu này bao gồm **Angular** và các thành phần xung quanh c�
 - Học đủ **01 → 16** (gồm **16 - AG-Grid** cho bảng dữ liệu enterprise) và **15 - Master Angular** (Change Detection, Signals, Performance, Security, kiến trúc).
 - Trả lời được **checklist phỏng vấn Senior** trong bài 15 (và thực hành AG-Grid trong project).
 - Kết quả: Bạn đủ nền để **làm master Angular** và **lập trình web bằng Angular** ở mức senior — thiết kế kiến trúc, chọn công nghệ (Material, AG-Grid, NgRx), tối ưu performance, bảo mật, test và deploy.
+
+---
+
+## 📁 Project minh họa (example)
+
+- **[web/example](web/example/)** — Trang tĩnh HTML/CSS/JS (CSS, Flexbox, Grid, Responsive, A11y). Xem [web/example/README.md](web/example/README.md).
+- **[angular/example](angular/example/)** — Ứng dụng Angular chạy được: `cd angular/example && npm install && npm start`. Xem [angular/example/README.md](angular/example/README.md).

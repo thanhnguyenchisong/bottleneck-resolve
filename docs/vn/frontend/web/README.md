@@ -39,3 +39,9 @@ Bộ tài liệu **nền tảng web** không phụ thuộc framework: **CSS**, *
 ---
 
 **Gợi ý**: Đọc song song **web** (nền) và **frontend** (Angular) — áp dụng SCSS, responsive, reactive, a11y ngay trong project Angular.
+
+---
+
+## 📁 Project minh họa
+
+→ **[example/](example/)** — Project tĩnh (HTML/CSS/JS) chạy được: mở `index.html` hoặc `npx serve example`. Xem [example/README.md](example/README.md) để chạy và test.
